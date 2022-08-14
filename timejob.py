@@ -106,6 +106,10 @@ def gmail_create_draft(content):
         send_message = None
     return send_message
 
+
+def data_collection_real_time(symbol):
+    pass
+
 def analysisHK():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     marState = quote_ctx.get_global_state()
@@ -134,7 +138,7 @@ def analysisHK():
                 else:
                     print('Market state error:', data)
 
-                df_pn = pd.DataFrame(columns={'pn'}, index=symbol)
+                '''df_pn = pd.DataFrame(columns={'pn'}, index=symbol)
                 for stock_i in symbol:
                     ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=current_time_day,
                                                                               end=current_time_day,
@@ -149,13 +153,14 @@ def analysisHK():
                         df_pn['pn'][stock_i] = pn
                     else:
                         print('error:', data)
-                df_pn.to_csv('EmailAtt/pn_Table.csv')
+                df_pn.to_csv('EmailAtt/pn_Table.csv')'''
 
                 ret, data = quote_ctx.get_market_snapshot(symbol)
                 if ret == RET_OK:
                     dfsnap = data.set_index('code')
                     dfsnap.to_csv('Snapshot.csv')
-                    realTimeAnalysis(symbol, dfsnap)       #技術分析
+
+                    #realTimeAnalysis(symbol, dfsnap)       #技術分析
                 else:
                     print('Snapshot error:', data)
 
@@ -1134,25 +1139,7 @@ def exclud_pre_after_market():
 
 
 if __name__ == '__main__':
-    Msg = 'Test'
-    #gmail_create_draft(Msg)
-
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    current_time_day = str(datetime.now().date())
-    current_time = datetime.now().time()
-    from datetime import time
-
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-
-    ret, data = quote_ctx.get_market_state(symbol)  # 檢查有沒有停牌股票
-
-    if ret == RET_OK:
-        dfsnap = data.set_index('code')
-        realTimeAnalysis(symbol, dfsnap)  # 技術分析
-    else:
-        print('Snapshot error:', data)
-
-    sleep(1800)
-    del time
+    data_collection_real_time(symbol)
 
