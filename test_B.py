@@ -36,7 +36,7 @@ if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
 
-    '''
+
     class OrderBookTest(OrderBookHandlerBase):
         def on_recv_rsp(self, rsp_pb):
             ret_code, data_order = super(OrderBookTest, self).on_recv_rsp(rsp_pb)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     quote_ctx.set_handler(handler, handler1)
     quote_ctx.subscribe(['HK.00700', 'HK.00005'], [SubType.ORDER_BOOK, SubType.TICKER])
     sleep(5)
-    quote_ctx.close()'''
+    quote_ctx.close()
 
 
 
