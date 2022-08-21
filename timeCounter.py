@@ -6,7 +6,7 @@ import multiprocessing
 import algo_lib
 
 
-def timer():
+def timer_old():
     print("All start")
     while True:
         current_time = datetime.now().time()
@@ -21,7 +21,7 @@ def timer():
             sleep(21540)
         elif time(9, 30) < current_time <= time(9, 31):
             print('HK Market Process Open ', current_time)
-            worker1 = multiprocessing.Process(target=timejob.analysisHK)
+            worker1 = multiprocessing.Process(target=timejob.market_check_HK)
             worker1.start()
         elif time(12, 15) < current_time <= time(12, 16):
             print('US data collection')
@@ -37,6 +37,21 @@ def timer():
             worker2.start()
 
         sleep(60)
+
+def timer():
+    print("All start")
+    while True:
+        current_time = datetime.now().time()
+        ToWeekday = datetime.weekday(datetime.now())
+
+        if time(9, 30) < current_time <= time(9, 31):
+            print('HK Market Process Open ', current_time)
+            worker1 = multiprocessing.Process(target=timejob.market_check_HK)
+            worker1.start()
+        elif time(16, 20) < current_time <= time(16, 21):
+            timejob.ddcoll_HK()
+            print('HK data collection done')
+
 
 def timer_test():
     print("All start")

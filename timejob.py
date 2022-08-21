@@ -106,19 +106,59 @@ def gmail_create_draft(content):
         send_message = None
     return send_message
 
+class OrderBookTest(OrderBookHandlerBase):
+    def on_recv_rsp(self, rsp_pb):
+        ret_code, data_order = super(OrderBookTest, self).on_recv_rsp(rsp_pb)
+        if ret_code != RET_OK:
+            print("OrderBookTest: error, msg: %s" % data_order)
+            return RET_ERROR, data_order
+        print("OrderBookTest ", data_order)  # OrderBookTest 自己的处理逻辑
+        return RET_OK, data_order
 
-def data_collection_real_time(symbol):
-    pass
+class TickerTest(TickerHandlerBase):
+    def on_recv_rsp(self, rsp_pb):
+        ret_code, data_tiker = super(TickerTest, self).on_recv_rsp(rsp_pb)
+        if ret_code != RET_OK:
+            print("TickerTest: error, msg: %s" % data_tiker)
+            return RET_ERROR, data_tiker
+        print("TickerTest ", data_tiker)  # TickerTest 自己的处理逻辑
+        return RET_OK, data_tiker
 
-def analysisHK():
+def market_check_HK():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     marState = quote_ctx.get_global_state()
-    current_time_day = str(datetime.now().date())
-    if marState[1]['market_hk'] == 'CLOSED':
+
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+
+    ret, data_state = quote_ctx.get_market_state(symbol)
+    if ret == RET_OK:
+        for state_i in range(len(data_state)):
+            if data_state['market_state'][state_i] == 'CLOSED':
+                data_state = data_state.drop([state_i])
+    else:
+        print('Market state error:', data_state)
+    symbol = data_state['code'].tolist()
+
+    while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
+        handler = OrderBookTest()
+        handler1 = TickerTest()
+        quote_ctx.set_handler(handler, handler1)
+        quote_ctx.subscribe([symbol], [SubType.ORDER_BOOK, SubType.TICKER])
+
+        marState = quote_ctx.get_global_state()
+        if marState[1]['market_hk'] == 'REST':
+            while True:
+                marState = quote_ctx.get_global_state()
+                if marState[1]['market_hk'] != 'REST':
+                    break
+    else:
         print('HK Market Closed')
         quote_ctx.close()
-        pass
-    elif marState[1]['market_hk'] == 'MORNING':
+
+
+    if marState[1]['market_hk'] == 'MORNING':
+        current_time = datetime.now().time()
         while True:
             current_time = datetime.now().time()
             from datetime import time
