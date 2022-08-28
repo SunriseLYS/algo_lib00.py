@@ -38,17 +38,20 @@ def timer_old():
 
         sleep(60)
 
+
 def timer():
     print("All start")
     while True:
-        current_time = datetime.now().time()
+        current_time = datetime.now().time().replace(second=0, microsecond=0)
         ToWeekday = datetime.weekday(datetime.now())
 
-        if time(9, 30) < current_time <= time(9, 31):
+        if ToWeekday == 5 and current_time == time(7, 0):
+            print('Weekend Market off')
+            sleep(172800)  # 48 hours
+        elif current_time == time(9, 30):
             print('HK Market Process Open ', current_time)
-            worker1 = multiprocessing.Process(target=timejob.market_check_HK)
-            worker1.start()
-        elif time(16, 20) < current_time <= time(16, 21):
+            timejob.market_check_HK()
+        elif current_time == time(16, 30):
             timejob.ddcoll_HK()
             print('HK data collection done')
 
@@ -65,5 +68,6 @@ def timer_test():
 
         sleep(60)
 
+
 if __name__ == '__main__':
-    timer_test()
+    timer()

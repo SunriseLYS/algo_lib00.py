@@ -131,7 +131,7 @@ def market_check_HK():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
 
-    ret, data_state = quote_ctx.get_market_state(symbol)
+    ret, data_state = quote_ctx.get_market_state(symbol)   # 檢查停牌股票
     if ret == RET_OK:
         for state_i in range(len(data_state)):
             if data_state['market_state'][state_i] == 'CLOSED':
@@ -140,15 +140,32 @@ def market_check_HK():
         print('Market state error:', data_state)
     symbol = data_state['code'].tolist()
 
-    while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
-        handler = OrderBookTest()
-        handler1 = TickerTest()
-        quote_ctx.set_handler(handler, handler1)
-        quote_ctx.subscribe([symbol], [SubType.ORDER_BOOK, SubType.TICKER])
+    for i in symbol:
+        i = str(i).replace('.', '_')
+        exec('df_{} = {}'.format(i, 'pd.DataFrame()'))   # 創建動態變量
 
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)
+    if ret_sub == RET_OK:
+        pass
+    else:
+        print('subscription failed', err_message)
+
+    while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
+        for stock_i in symbol:
+            stock_i_ = stock_i.replace('.', '_')
+            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+            if ret == RET_OK:
+                exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+            else:
+                print('error:', data)
+        sleep(900)
         marState = quote_ctx.get_global_state()
         if marState[1]['market_hk'] == 'REST':
-            while True:
+            for stock_i in symbol:
+                stock_i_ = stock_i.replace('.', '_')
+                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
+
+            while True:   # 中午休市, 迴圈至下跌開市
                 marState = quote_ctx.get_global_state()
                 if marState[1]['market_hk'] != 'REST':
                     break
@@ -156,56 +173,6 @@ def market_check_HK():
         print('HK Market Closed')
         quote_ctx.close()
 
-
-    if marState[1]['market_hk'] == 'MORNING':
-        current_time = datetime.now().time()
-        while True:
-            current_time = datetime.now().time()
-            from datetime import time
-            if time(16, 0) < current_time <= time(16, 1):
-                quote_ctx.close()
-                break
-            else:
-                watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-                symbol = watchlist['Futu symbol'].tolist()
-
-                ret, data = quote_ctx.get_market_state(symbol)   #檢查有沒有停牌股票
-                if ret == RET_OK:
-                    for state_i in range(len(data)):
-                        if data['market_state'][state_i] == 'CLOSED':
-                            data = data.drop([state_i])
-                    symbol = data['code'].tolist()
-                else:
-                    print('Market state error:', data)
-
-                '''df_pn = pd.DataFrame(columns={'pn'}, index=symbol)
-                for stock_i in symbol:
-                    ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=current_time_day,
-                                                                              end=current_time_day,
-                                                                              ktype=KLType.K_1M, max_count=1000)
-                    if ret == RET_OK:
-                        data.drop('code', axis=1)
-                        data['mid'] = (data['high'] + data['low']) / 2
-                        dfD = pd.read_csv('Database/' + stock_i + '/' + stock_i + '.csv')
-                        last_price = dfD['close'][len(dfD) - 1]
-                        data['pre_close_min'] = last_price
-                        pn = ts.model3V_RT(data)
-                        df_pn['pn'][stock_i] = pn
-                    else:
-                        print('error:', data)
-                df_pn.to_csv('EmailAtt/pn_Table.csv')'''
-
-                ret, data = quote_ctx.get_market_snapshot(symbol)
-                if ret == RET_OK:
-                    dfsnap = data.set_index('code')
-                    dfsnap.to_csv('Snapshot.csv')
-
-                    #realTimeAnalysis(symbol, dfsnap)       #技術分析
-                else:
-                    print('Snapshot error:', data)
-
-            sleep(1800)
-            del time
 
 def analysisUS():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
@@ -1181,5 +1148,4 @@ def exclud_pre_after_market():
 if __name__ == '__main__':
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    data_collection_real_time(symbol)
 

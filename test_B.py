@@ -9,13 +9,13 @@ from time import sleep
 import numpy as np
 import mysql.connector
 from mysql.connector import Error
-pd.set_option('display.max_columns', 150)       #pandas setting 顥示列數上限
-pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊度
-#pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
-pd.set_option('display.max_rows', 5000)       #pandas setting 顯示行的闊度
+
+pd.set_option('display.max_columns', 150)  # pandas setting 顥示列數上限
+pd.set_option('display.width', 5000)  # pandas setting 顯示列的闊度
+# pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
+pd.set_option('display.max_rows', 5000)  # pandas setting 顯示行的闊度
 pd.options.mode.chained_assignment = None
 
-quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -32,46 +32,116 @@ def create_server_connection(host_name, user_name, user_password):
     return connection
 
 
+def data_check():
+    connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
+    cursor = connection.cursor()
+    sql = "USE HK_00005"
+    cursor.execute(sql)
+    df = pd.read_sql("SELECT * FROM Day", connection)
+    print(df)
+
+
 if __name__ == "__main__":
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
+    symbol = symbol[:3]
+
+    for i in symbol:
+        i = str(i).replace('.', '_')
+        exec('df_{} = {}'.format(i, 'pd.DataFrame()'))
 
 
-    class OrderBookTest(OrderBookHandlerBase):
-        def on_recv_rsp(self, rsp_pb):
-            ret_code, data_order = super(OrderBookTest, self).on_recv_rsp(rsp_pb)
-            if ret_code != RET_OK:
-                print("OrderBookTest: error, msg: %s" % data_order)
-                return RET_ERROR, data_order
-            print("OrderBookTest ", data_order)  # OrderBookTest 自己的处理逻辑
-            return RET_OK, data_order
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)
+    if ret_sub == RET_OK:
+        for stock_i in symbol:
+            stock_i_ = stock_i.replace('.', '_')
+            for x in range(20):
+                ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+                if ret == RET_OK:
+                    exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+                    #exec('df_{stock_i_} = data'.format(stock_i_=stock_i_))
+                else:
+                    print('error:', data)
+    else:
+        print('subscription failed', err_message)
 
-    class TickerTest(TickerHandlerBase):
-        def on_recv_rsp(self, rsp_pb):
-            ret_code, data_tiker = super(TickerTest, self).on_recv_rsp(rsp_pb)
-            if ret_code != RET_OK:
-                print("TickerTest: error, msg: %s" % data_tiker)
-                return RET_ERROR, data_tiker
-            print("TickerTest ", data_tiker)  # TickerTest 自己的处理逻辑
-            return RET_OK, data_tiker
+    for stock_i in symbol:
+        stock_i_ = stock_i.replace('.', '_')
+        exec('df_{}.to_csv("Analysis/" + stock_i + ".csv")'.format(stock_i_))
 
-    class BrokerTest(BrokerHandlerBase):
-
-        def on_recv_rsp(self, rsp_pb):
-            ret_code, err_or_stock_code, data = super(BrokerTest, self).on_recv_rsp(rsp_pb)
-            if ret_code != RET_OK:
-                print("BrokerTest: error")
-                return RET_ERROR, data
-            #print("BrokerTest: stock: {} data: {} ".format(err_or_stock_code, data))
-            return RET_OK, data
-
-    handler = OrderBookTest()
-    handler1 = TickerTest()
-    #handler2 = BrokerTest()
-    quote_ctx.set_handler(handler, handler1)
-    quote_ctx.subscribe(['HK.00700', 'HK.00005'], [SubType.ORDER_BOOK, SubType.TICKER])
-    sleep(5)
     quote_ctx.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
