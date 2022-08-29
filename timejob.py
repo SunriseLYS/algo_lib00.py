@@ -171,6 +171,15 @@ def market_check_HK():
                     break
     else:
         print('HK Market Closed')
+        for stock_i in symbol:
+            stock_i_ = stock_i.replace('.', '_')
+            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+            if ret == RET_OK:
+                exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
+            else:
+                print('error:', data)
+        print('price collection completed')
         quote_ctx.close()
 
 
@@ -699,7 +708,7 @@ def ddcoll_HK():
         cursor.execute(sql)
         showHall = cursor.fetchall()
 
-        if showHall == []:
+        if showHall == []: # 無現有記錄
             sql = 'CREATE DATABASE %s' %(stock_i)
             cursor.execute(sql)
 
@@ -771,7 +780,7 @@ def ddcoll_HK():
 
             print('Created a new record for ', stock_i)
             time.sleep(0.5)
-        else:
+        else: # 如果有舊紀錄則和舊紀錄合併
             sql = "USE %s" %(stock_i_)
             cursor.execute(sql)
 
@@ -781,7 +790,7 @@ def ddcoll_HK():
             lastDay += timedelta(days=1)
             ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=str(lastDay), end=current_time, max_count=100)
             if ret == RET_OK:
-                #如果有舊紀錄則和舊紀錄合併
+
                 data = data.drop(['code', 'last_close'], axis=1)
                 data = data.rename(columns={'time_key': 'date'})
                 data['mid'] = (data['high'] + data['low']) / 2
