@@ -17,12 +17,14 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-pd.set_option('display.max_columns', 10)       #pandas setting 顥示列數上限
-pd.set_option('display.width', 1000)           #pandas setting 顯示列的闊度
+pd.set_option('display.max_columns', 10)  # pandas setting 顥示列數上限
+pd.set_option('display.width', 1000)  # pandas setting 顯示列的闊度
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.dirname(os.path.abspath(__file__)) +"/dauntless-brace-355907-ccb9311dcf58.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.dirname(
+    os.path.abspath(__file__)) + "/dauntless-brace-355907-ccb9311dcf58.json"
+
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -38,6 +40,7 @@ def create_server_connection(host_name, user_name, user_password):
 
     return connection
 
+
 def create_database(connection, query):
     cursor = connection.cursor()
     try:
@@ -46,7 +49,8 @@ def create_database(connection, query):
     except Error as err:
         print(f"Error: '{err}'")
 
-def data_request(connection, stock_i_, table = 'Day'):
+
+def data_request(connection, stock_i_, table='Day'):
     cursor = connection.cursor()
     sql = "USE %s" % (stock_i_)
     cursor.execute(sql)
@@ -62,6 +66,7 @@ def data_request(connection, stock_i_, table = 'Day'):
 
     df = pd.DataFrame(result, columns=columns)
     return df
+
 
 def gmail_create_draft(content):
     creds, _ = google.auth.default()
@@ -106,6 +111,7 @@ def gmail_create_draft(content):
         send_message = None
     return send_message
 
+
 class OrderBookTest(OrderBookHandlerBase):
     def on_recv_rsp(self, rsp_pb):
         ret_code, data_order = super(OrderBookTest, self).on_recv_rsp(rsp_pb)
@@ -114,6 +120,7 @@ class OrderBookTest(OrderBookHandlerBase):
             return RET_ERROR, data_order
         print("OrderBookTest ", data_order)  # OrderBookTest 自己的处理逻辑
         return RET_OK, data_order
+
 
 class TickerTest(TickerHandlerBase):
     def on_recv_rsp(self, rsp_pb):
@@ -124,6 +131,7 @@ class TickerTest(TickerHandlerBase):
         print("TickerTest ", data_tiker)  # TickerTest 自己的处理逻辑
         return RET_OK, data_tiker
 
+
 def market_check_HK():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     marState = quote_ctx.get_global_state()
@@ -131,7 +139,7 @@ def market_check_HK():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
 
-    ret, data_state = quote_ctx.get_market_state(symbol)   # 檢查停牌股票
+    ret, data_state = quote_ctx.get_market_state(symbol)  # 檢查停牌股票
     if ret == RET_OK:
         for state_i in range(len(data_state)):
             if data_state['market_state'][state_i] == 'CLOSED':
@@ -142,7 +150,7 @@ def market_check_HK():
 
     for i in symbol:
         i = str(i).replace('.', '_')
-        exec('df_{} = {}'.format(i, 'pd.DataFrame()'))   # 創建動態變量
+        exec('df_{} = {}'.format(i, 'pd.DataFrame()'))  # 創建動態變量
 
     ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)
     if ret_sub == RET_OK:
@@ -165,7 +173,7 @@ def market_check_HK():
                 stock_i_ = stock_i.replace('.', '_')
                 exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
 
-            while True:   # 中午休市, 迴圈至下跌開市
+            while True:  # 中午休市, 迴圈至下跌開市
                 marState = quote_ctx.get_global_state()
                 if marState[1]['market_hk'] != 'REST':
                     break
@@ -179,8 +187,9 @@ def market_check_HK():
                 exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
             else:
                 print('error:', data)
+
         print('price collection completed')
-        quote_ctx.close()
+    quote_ctx.close()
 
 
 def analysisUS():
@@ -190,8 +199,8 @@ def analysisUS():
         print('US Market Closed')
         quote_ctx.close()
         pass
-    elif marState[1]['market_us'] == 'AFTERNOON': #美股不分早午市
-        for i in range(6):  #每半小時做一次分析, 只做6次
+    elif marState[1]['market_us'] == 'AFTERNOON':  # 美股不分早午市
+        for i in range(6):  # 每半小時做一次分析, 只做6次
             watchlist = pd.read_csv('watchlistUS.csv')
             symbol = watchlist['Futu symbol'].tolist()
             ret, data = quote_ctx.get_market_state(symbol)  # 檢查有沒有停牌股票
@@ -211,9 +220,9 @@ def analysisUS():
                 print('Market state error:', data)
             print('real-time analysisUS not completed')  # real-time analysis
             sleep(1800)
-    elif marState[1]['market_us'] == 'PRE_MARKET_BEGIN': #如果仍然是開市前交易時段, 則為冬令時間延後1個小時
+    elif marState[1]['market_us'] == 'PRE_MARKET_BEGIN':  # 如果仍然是開市前交易時段, 則為冬令時間延後1個小時
         sleep(3600)
-        for i in range(6):  #每半小時做一次分析, 只做6次
+        for i in range(6):  # 每半小時做一次分析, 只做6次
             watchlist = pd.read_csv('watchlistUS.csv')
             symbol = watchlist['Futu symbol'].tolist()
             ret, data = quote_ctx.get_market_state(symbol)  # 檢查有沒有停牌股票
@@ -248,7 +257,9 @@ def realTimeAnalysis(symbol, dfsnap):
     Tech_Table_R['symbol'] = symbol
     Tech_Table_R = Tech_Table_R.set_index('symbol')
 
-    dfsnap = dfsnap.rename(columns={'update_time': 'date', 'open_price': 'open', 'high_price': 'high', 'low_price': 'low', 'last_price': 'close'})
+    dfsnap = dfsnap.rename(
+        columns={'update_time': 'date', 'open_price': 'open', 'high_price': 'high', 'low_price': 'low',
+                 'last_price': 'close'})
 
     for stock_i in symbol:
         latestPrice = dfsnap.loc[[stock_i]]
@@ -265,7 +276,8 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['SAR'] = ta.SAR(Main_record['high'], Main_record['low'], acceleration=TA_Con0, maximum=TA_Con1)
+                Main_record['SAR'] = ta.SAR(Main_record['high'], Main_record['low'], acceleration=TA_Con0,
+                                            maximum=TA_Con1)
                 TA_value = Main_record['SAR'][len(Main_record) - 1]
                 Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
                 Latest_P = Main_record['close'][len(Main_record) - 1]
@@ -305,15 +317,16 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(Main_record['close'], fastperiod = TA_Con0, slowperiod = TA_Con1, singalperiod = TA_Con2)
-                TA_value = Main_record['MACD Hist'][len(Main_record)-1]
+                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
+                    Main_record['close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
+                TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
                 Tech_Table_H['Method'][stock_i] = 'MACD'
                 Tech_Table_H['TA Value'][stock_i] = TA_value
 
-                if TA_value > 0 and Former_TA_value <=0:
+                if TA_value > 0 and Former_TA_value <= 0:
                     MACD_Signal_List_H.append(stock_i)
-                elif TA_value <= 0 and Former_TA_value >0:
+                elif TA_value <= 0 and Former_TA_value > 0:
                     MACD_Sell_List_H.append(stock_i)
 
             elif Method_Sum['Tech Method'][TA_Row_H] == 'BB':
@@ -321,10 +334,11 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(Main_record['close'], Timeperiod = TA_Con0, Upper = TA_Con1, Lower = TA_Con2)
-                TA_value = Main_record['BB Lower'][len(Main_record)-1]
+                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
+                    Main_record['close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
+                TA_value = Main_record['BB Lower'][len(Main_record) - 1]
                 TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
-                Latest_P = Main_record['Close'][len(Main_record)-1]
+                Latest_P = Main_record['Close'][len(Main_record) - 1]
                 Tech_Table_H['Method'][stock_i] = 'BB'
                 Tech_Table_H['TA Value'][stock_i] = TA_value
                 Tech_Table_H['Other'][stock_i] = TA_value1
@@ -338,8 +352,9 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MFI'] = ta.MFI(Main_record['high'], Main_record['low'], Main_record['close'], Main_record['volume'], timeperiod = TA_Con0)
-                TA_value = Main_record['MFI'][len(Main_record)-1]
+                Main_record['MFI'] = ta.MFI(Main_record['high'], Main_record['low'], Main_record['close'],
+                                            Main_record['volume'], timeperiod=TA_Con0)
+                TA_value = Main_record['MFI'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
                 Tech_Table_H['Method'][stock_i] = 'MFI'
                 Tech_Table_H['TA Value'][stock_i] = TA_value
@@ -359,7 +374,8 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['SAR'] = ta.SAR(Main_record['high'], Main_record['low'], acceleration=TA_Con0, maximum=TA_Con1)
+                Main_record['SAR'] = ta.SAR(Main_record['high'], Main_record['low'], acceleration=TA_Con0,
+                                            maximum=TA_Con1)
                 TA_value = Main_record['SAR'][len(Main_record) - 1]
                 Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
                 Latest_P = Main_record['close'][len(Main_record) - 1]
@@ -397,7 +413,8 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(Main_record['close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
+                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
+                    Main_record['close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
                 TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
                 Tech_Table_R['Method'][stock_i] = 'MACD'
@@ -412,7 +429,8 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(Main_record['close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
+                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
+                    Main_record['close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
                 TA_value = Main_record['BB Lower'][len(Main_record) - 1]
                 TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
                 Latest_P = Main_record['Close'][len(Main_record) - 1]
@@ -429,7 +447,8 @@ def realTimeAnalysis(symbol, dfsnap):
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['close'], Main_record['volume'], timeperiod=TA_Con0)
+                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['close'],
+                                            Main_record['volume'], timeperiod=TA_Con0)
                 TA_value = Main_record['MFI'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
                 Tech_Table_R['Method'][stock_i] = 'MFI'
@@ -443,25 +462,28 @@ def realTimeAnalysis(symbol, dfsnap):
         except:
             print('Method analysis-2 stage error ', stock_i)
 
-
     Tech_Table_H.to_csv('EmailAtt/Tech_Table_H.csv')
     Tech_Table_R.to_csv('EmailAtt/Tech_Table_R.csv')
 
     Moment = datetime.now().time()
-    Msg = "Check for the time: " + str(Moment) + "\n SAR Buy(H): " + str(SAR_Signal_List_H) + "\n RSI Buy(H): " + str(RSI_Signal_List_H) + "\n MACD Buy(H): " + str(MACD_Signal_List_H) + \
-    "\n BB Buy(H): " + str(BB_Signal_List_H) + "\n MFI Buy(H): " + str(MFI_Signal_List_H) + "\n\n SAR Buy(R): " + str(SAR_Signal_List_R) + "\n RSI Buy(R): " + str(RSI_Signal_List_R) + \
-    "\n BB Buy(R): " + str(BB_Signal_List_R) + "\n MACD Buy(R): " + str(MACD_Signal_List_R) + "\n MFI Buy(R): " + str(MFI_Signal_List_R) + "\n\n SAR Sell(H): " + str(SAR_Sell_List_H) + \
-    "\n RSI Sell(H): " + str(RSI_Sell_List_H) + "\n MACD Sell(H): " + str(MACD_Sell_List_H) + "\n BB Sell(H): " + str(BB_Sell_List_H) + "\n MFI Sell(H): " + str(MFI_Sell_List_H) + \
-    "\n\n SAR Sell(R): " + str(SAR_Sell_List_R) + "\n RSI Sell(R): " + str(RSI_Sell_List_R) + "\n MACD Sell(R): " + str(MACD_Sell_List_R) + "\n BB Sell(R): " + str(BB_Sell_List_R) + \
-    "\n MFI Sell(R): " + str(MFI_Sell_List_R)
+    Msg = "Check for the time: " + str(Moment) + "\n SAR Buy(H): " + str(SAR_Signal_List_H) + "\n RSI Buy(H): " + str(
+        RSI_Signal_List_H) + "\n MACD Buy(H): " + str(MACD_Signal_List_H) + \
+          "\n BB Buy(H): " + str(BB_Signal_List_H) + "\n MFI Buy(H): " + str(
+        MFI_Signal_List_H) + "\n\n SAR Buy(R): " + str(SAR_Signal_List_R) + "\n RSI Buy(R): " + str(RSI_Signal_List_R) + \
+          "\n BB Buy(R): " + str(BB_Signal_List_R) + "\n MACD Buy(R): " + str(
+        MACD_Signal_List_R) + "\n MFI Buy(R): " + str(MFI_Signal_List_R) + "\n\n SAR Sell(H): " + str(SAR_Sell_List_H) + \
+          "\n RSI Sell(H): " + str(RSI_Sell_List_H) + "\n MACD Sell(H): " + str(
+        MACD_Sell_List_H) + "\n BB Sell(H): " + str(BB_Sell_List_H) + "\n MFI Sell(H): " + str(MFI_Sell_List_H) + \
+          "\n\n SAR Sell(R): " + str(SAR_Sell_List_R) + "\n RSI Sell(R): " + str(
+        RSI_Sell_List_R) + "\n MACD Sell(R): " + str(MACD_Sell_List_R) + "\n BB Sell(R): " + str(BB_Sell_List_R) + \
+          "\n MFI Sell(R): " + str(MFI_Sell_List_R)
 
-    #Msg = "Check for the time: " + str(Moment) + "\n SAR" + str(SAR_Signal_List_H) + "\n RSI" + str(RSI_Signal_List_H) + '\n MACD' + str(MACD_Signal_List_H) + '\n MFI' + str(MFI_Signal_List_H)
+    # Msg = "Check for the time: " + str(Moment) + "\n SAR" + str(SAR_Signal_List_H) + "\n RSI" + str(RSI_Signal_List_H) + '\n MACD' + str(MACD_Signal_List_H) + '\n MFI' + str(MFI_Signal_List_H)
     att1 = 'EmailAtt/Tech_Table_H.csv'
     att2 = 'EmailAtt/Tech_Table_R.csv'
     att3 = 'EmailAtt/pn_Table.csv'
 
     gmail_create_draft(Msg)
-
 
 
 def datarequest(symbol):
@@ -479,6 +501,7 @@ def datarequest(symbol):
         else:
             print('error:', data)
     quote_ctx.close()
+
 
 def emailnotice():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
@@ -500,7 +523,8 @@ def emailnotice():
     for input_i in watchlist['Futu symbol']:
         OP = dfemail.loc[[input_i]]
         OP['update_time'] = pd.to_datetime(OP['update_time']).dt.date
-        OP = OP.rename(columns={'update_time': 'Date', 'open_price': 'Open', 'high_price': 'High', 'low_price': 'Low', 'last_price': 'Close', 'volume': 'Volume'})
+        OP = OP.rename(columns={'update_time': 'Date', 'open_price': 'Open', 'high_price': 'High', 'low_price': 'Low',
+                                'last_price': 'Close', 'volume': 'Volume'})
         OP.set_index('Date', inplace=True)
         Main_record = pd.read_csv('Database/' + input_i + '/' + input_i + '_min.csv', index_col=0)
         Main_record = pd.concat([Main_record, OP])
@@ -513,10 +537,11 @@ def emailnotice():
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration = TA_Con0, maximum = TA_Con1)
-                TA_value = Main_record['SAR'][len(Main_record)-1]
+                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration=TA_Con0,
+                                            maximum=TA_Con1)
+                TA_value = Main_record['SAR'][len(Main_record) - 1]
                 Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
-                Latest_P = Main_record['Close'][len(Main_record)-1]
+                Latest_P = Main_record['Close'][len(Main_record) - 1]
                 Tech_Table_H['Method'][input_i] = 'SAR'
                 Tech_Table_H['TA Value'][input_i] = TA_value
                 Tech_Table_H['Other'][input_i] = 'Postpone', str(TA_Con2)
@@ -551,25 +576,27 @@ def emailnotice():
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(Main_record['Close'], fastperiod = TA_Con0, slowperiod = TA_Con1, singalperiod = TA_Con2)
-                TA_value = Main_record['MACD Hist'][len(Main_record)-1]
+                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
+                    Main_record['Close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
+                TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
                 Tech_Table_H['Method'][input_i] = 'MACD'
                 Tech_Table_H['TA Value'][input_i] = TA_value
 
-                if TA_value > 0 and Former_TA_value <=0:
+                if TA_value > 0 and Former_TA_value <= 0:
                     MACD_Signal_List_H.append(input_i)
-                elif TA_value <= 0 and Former_TA_value >0:
+                elif TA_value <= 0 and Former_TA_value > 0:
                     MACD_Sell_List_H.append(input_i)
 
             elif Method_Sum['Method'][TA_Row_H] == 'BB':
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(Main_record['Close'], Timeperiod = TA_Con0, Upper = TA_Con1, Lower = TA_Con2)
-                TA_value = Main_record['BB Lower'][len(Main_record)-1]
+                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
+                    Main_record['Close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
+                TA_value = Main_record['BB Lower'][len(Main_record) - 1]
                 TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
-                Latest_P = Main_record['Close'][len(Main_record)-1]
+                Latest_P = Main_record['Close'][len(Main_record) - 1]
                 Tech_Table_H['Method'][input_i] = 'BB'
                 Tech_Table_H['TA Value'][input_i] = TA_value
                 Tech_Table_H['Other'][input_i] = TA_value1
@@ -583,8 +610,9 @@ def emailnotice():
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'], Main_record['Volume'], timeperiod = TA_Con0)
-                TA_value = Main_record['MFI'][len(Main_record)-1]
+                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'],
+                                            Main_record['Volume'], timeperiod=TA_Con0)
+                TA_value = Main_record['MFI'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
                 Tech_Table_H['Method'][input_i] = 'MFI'
                 Tech_Table_H['TA Value'][input_i] = TA_value
@@ -598,15 +626,16 @@ def emailnotice():
             print(input_i, 'Check 1 Error')
 
         try:
-            TA_Row_R = Method_Sum['Return'].idxmax()                               #取得回報最高的列數
+            TA_Row_R = Method_Sum['Return'].idxmax()  # 取得回報最高的列數
             if Method_Sum['Method'][TA_Row_R] == 'SAR':
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration = TA_Con0, maximum = TA_Con1)
-                TA_value = Main_record['SAR'][len(Main_record)-1]
+                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration=TA_Con0,
+                                            maximum=TA_Con1)
+                TA_value = Main_record['SAR'][len(Main_record) - 1]
                 Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
-                Latest_P = Main_record['Close'][len(Main_record)-1]
+                Latest_P = Main_record['Close'][len(Main_record) - 1]
                 Tech_Table_R['Method'][input_i] = 'SAR'
                 Tech_Table_R['TA Value'][input_i] = TA_value
                 Tech_Table_R['Other'][input_i] = 'Postpone', str(TA_Con2)
@@ -621,8 +650,8 @@ def emailnotice():
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
                 TA_Con3 = Method_Sum['Method Condition3'][TA_Row_R]
-                Main_record['RSI'] = ta.RSI(Main_record['Close'], timeperiod = TA_Con0)
-                TA_value = Main_record['RSI'][len(Main_record)-1]
+                Main_record['RSI'] = ta.RSI(Main_record['Close'], timeperiod=TA_Con0)
+                TA_value = Main_record['RSI'][len(Main_record) - 1]
                 Former_TA_value = Main_record['RSI'][len(Main_record) - 2]
                 Tech_Table_R['Method'][input_i] = 'RSI'
                 Tech_Table_R['TA Value'][input_i] = TA_value
@@ -641,22 +670,24 @@ def emailnotice():
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(Main_record['Close'], fastperiod = TA_Con0, slowperiod = TA_Con1, singalperiod = TA_Con2)
-                TA_value = Main_record['MACD Hist'][len(Main_record)-1]
+                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
+                    Main_record['Close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
+                TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
                 Tech_Table_R['Method'][input_i] = 'MACD'
                 Tech_Table_R['TA Value'][input_i] = TA_value
 
-                if TA_value > 0 and Former_TA_value <=0:
+                if TA_value > 0 and Former_TA_value <= 0:
                     MACD_Signal_List_R.append(input_i)
-                elif TA_value <= 0 and Former_TA_value >0:
+                elif TA_value <= 0 and Former_TA_value > 0:
                     MACD_Sell_List_R.append(input_i)
 
             elif Method_Sum['Method'][TA_Row_R] == 'BB':
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(Main_record['Close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
+                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
+                    Main_record['Close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
                 TA_value = Main_record['BB Lower'][len(Main_record) - 1]
                 TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
                 Latest_P = Main_record['Close'][len(Main_record) - 1]
@@ -673,8 +704,9 @@ def emailnotice():
                 TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
                 TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
                 TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'], Main_record['Volume'], timeperiod = TA_Con0)
-                TA_value = Main_record['MFI'][len(Main_record)-1]
+                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'],
+                                            Main_record['Volume'], timeperiod=TA_Con0)
+                TA_value = Main_record['MFI'][len(Main_record) - 1]
                 Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
                 Tech_Table_R['Method'][input_i] = 'MFI'
                 Tech_Table_R['TA Value'][input_i] = TA_value
@@ -692,7 +724,6 @@ def emailnotice():
     Tech_Table_R.to_csv('EmailAtt/Tech_Table_R.csv')
 
 
-
 def ddcoll_HK():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
@@ -708,8 +739,8 @@ def ddcoll_HK():
         cursor.execute(sql)
         showHall = cursor.fetchall()
 
-        if showHall == []: # 無現有記錄
-            sql = 'CREATE DATABASE %s' %(stock_i)
+        if showHall == []:  # 無現有記錄
+            sql = 'CREATE DATABASE %s' % (stock_i)
             cursor.execute(sql)
 
             sql = "CREATE TABLE Day(date DATE, open FLOAT, close FLOAT, high FLOAT, low FLOAT, pe_ratio FLOAT, " \
@@ -720,14 +751,16 @@ def ddcoll_HK():
                   "volume INT, turnover BIGINT, change_rate FLOAT, mid FLOAT, pre_close FLOAT)"
             cursor.execute(sql)
 
-            #取得每日報價
-            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start='2015-01-01', end=current_time, max_count=1000)
+            # 取得每日報價
+            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start='2015-01-01', end=current_time,
+                                                                      max_count=1000)
             if ret == RET_OK:
                 df = data
             else:
                 print('error:', data)
             while page_req_key != None:
-                ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start='2015-01-01', end=current_time, max_count=1000,
+                ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start='2015-01-01', end=current_time,
+                                                                          max_count=1000,
                                                                           page_req_key=page_req_key)
                 if ret == RET_OK:
                     df = pd.concat([df, data])
@@ -745,15 +778,17 @@ def ddcoll_HK():
 
             time.sleep(0.5)
 
-            #取得每分鐘報價-全新
-            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, ktype=KLType.K_1M, start='2020-01-01', end=current_time,
-                                                                        max_count=1000)
+            # 取得每分鐘報價-全新
+            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, ktype=KLType.K_1M, start='2020-01-01',
+                                                                      end=current_time,
+                                                                      max_count=1000)
             if ret == RET_OK:
                 df = data
             else:
                 print('error:', data)
             while page_req_key != None:
-                ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, ktype=KLType.K_1M, start='2020-01-01',
+                ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, ktype=KLType.K_1M,
+                                                                          start='2020-01-01',
                                                                           end=current_time, max_count=1000,
                                                                           page_req_key=page_req_key)
                 if ret == RET_OK:
@@ -780,15 +815,16 @@ def ddcoll_HK():
 
             print('Created a new record for ', stock_i)
             time.sleep(0.5)
-        else: # 如果有舊紀錄則和舊紀錄合併
-            sql = "USE %s" %(stock_i_)
+        else:  # 如果有舊紀錄則和舊紀錄合併
+            sql = "USE %s" % (stock_i_)
             cursor.execute(sql)
 
             df = pd.read_sql("SELECT * FROM Day", connection)
 
             lastDay = df['date'][len(df) - 1]
             lastDay += timedelta(days=1)
-            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=str(lastDay), end=current_time, max_count=100)
+            ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=str(lastDay), end=current_time,
+                                                                      max_count=100)
             if ret == RET_OK:
 
                 data = data.drop(['code', 'last_close'], axis=1)
@@ -804,8 +840,8 @@ def ddcoll_HK():
                 print('Added a new record for ', stock_i)
                 time.sleep(0.5)
 
-            #取得每分鐘報價-加入到舊記錄
-            sql = "USE %s" %(stock_i_)
+            # 取得每分鐘報價-加入到舊記錄
+            sql = "USE %s" % (stock_i_)
             cursor.execute(sql)
 
             df = pd.read_sql("SELECT * FROM Mins", connection)
@@ -839,9 +875,23 @@ def ddcoll_HK():
 
             time.sleep(0.5)
 
-    quote_ctx.close()
-    gmail_create_draft('HK Data collection completed')
+        df_ex = pd.read_csv('Ram/%s.csv' % (stock_i), index_col=0)
+        df_ex.drop_duplicates(subset=['sequence'], keep='first', inplace=True)
+        df_ex.to_csv('Ram/%s.csv' % (stock_i))
 
+    quote_ctx.close()
+
+    '''
+    for i in symbol:
+        i = i.replace('.', '_')
+        sql = 'USE %s' % (i)
+        cursor.execute(sql)
+        sql = "CREATE TABLE T01(time_key TIMESTAMP, open FLOAT, close FLOAT, high FLOAT, low FLOAT, " \
+              "volume INT, turnover BIGINT, change_rate FLOAT, mid FLOAT, pre_close FLOAT)"
+        cursor.execute(sql)    
+    '''
+
+    # gmail_create_draft('HK Data collection completed')
 
 
 def ddcoll_US():
@@ -852,7 +902,8 @@ def ddcoll_US():
     thisDay = datetime.now().date() - timedelta(days=1)
     thisDay = str(thisDay)
     for stock_i in symbol:
-        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000, ktype=KLType.K_DAY)
+        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000,
+                                                                  ktype=KLType.K_DAY)
         if ret == RET_OK:
             Fpath = 'Database/' + stock_i
             pathName = 'Database/' + stock_i + '/' + stock_i + '.csv'
@@ -872,7 +923,8 @@ def ddcoll_US():
         time.sleep(0.5)
 
     for stock_i in symbol:
-        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000, extended_time=True, ktype=KLType.K_1M)
+        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000,
+                                                                  extended_time=True, ktype=KLType.K_1M)
         if ret == RET_OK:
             pathName = 'Database/' + stock_i + '/' + stock_i + '_min.csv'
             if not os.path.exists(pathName):
@@ -888,7 +940,6 @@ def ddcoll_US():
         print('All pages are finished!', stock_i)
         time.sleep(0.5)
     quote_ctx.close()
-
 
 
 def packaging_loc_to_cloud():
@@ -909,7 +960,8 @@ def packaging_loc_to_cloud():
     for stock_i in symbol:
         if not os.path.isdir('Pack for Cloud/' + stock_i):
             os.mkdir('Pack for Cloud/' + stock_i)
-        shutil.copyfile('Database/' + stock_i + '/Method Summary.csv', 'Pack for Cloud/' + stock_i + '/Method Summary.csv')
+        shutil.copyfile('Database/' + stock_i + '/Method Summary.csv',
+                        'Pack for Cloud/' + stock_i + '/Method Summary.csv')
 
 
 def distribution_on_cloud():
@@ -925,6 +977,7 @@ def distribution_on_cloud():
         except:
             print('Error on ' + i)
 
+
 def packaging_cloud_to_loc():
     if not os.path.isdir('Pack for Local'):
         os.mkdir('Pack for Local')
@@ -936,7 +989,7 @@ def packaging_cloud_to_loc():
     watchlist1 = pd.read_csv('watchlistUS.csv')
     symbol = watchlist['Futu symbol'].tolist()
     symbol1 = watchlist1['Futu symbol'].tolist()
-    #symbol += symbol1
+    # symbol += symbol1
 
     for i in symbol:
 
@@ -963,9 +1016,9 @@ def packaging_cloud_to_loc():
 def distribution_on_loc():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    #watchlist1 = pd.read_csv('watchlistUS.csv')
-    #symbol1 = watchlist1['Futu symbol'].tolist()
-    #symbol += symbol1
+    # watchlist1 = pd.read_csv('watchlistUS.csv')
+    # symbol1 = watchlist1['Futu symbol'].tolist()
+    # symbol += symbol1
 
     for i in symbol:
 
@@ -984,11 +1037,12 @@ def distribution_on_loc():
             dfM = pd.concat([dfM, dfMNew])
             dfM.to_csv('Database/' + i + '/' + i + '_min.csv')
 
-            #os.replace('Pack for Local/' + i + '_min.csv', dPathMin)
-            #os.replace('Pack for Local/' + i + '.csv', dPath)
+            # os.replace('Pack for Local/' + i + '_min.csv', dPathMin)
+            # os.replace('Pack for Local/' + i + '.csv', dPath)
 
         except:
             print('Error on ' + i)
+
 
 def distribution_on_loc2():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
@@ -1045,6 +1099,7 @@ def corActSch():
     corActSch['adjustment1'] = corActAdj1
     corActSch.to_csv('Database/corporate action schedule.csv')
 
+
 def exDiv_Check():
     corActSch = pd.read_csv('Database/corporate action schedule.csv', index_col=1)
     divSymList = corActSch.index
@@ -1060,6 +1115,7 @@ def exDiv_Check():
             exDiv(corActSch)
         else:
             print('Checked no ex-dividend action today')
+
 
 def exDiv(corActSch):
     divSymList = corActSch.index
@@ -1084,6 +1140,7 @@ def exDiv(corActSch):
 
         df.to_csv('Database/' + str(stock_i) + '/' + str(stock_i) + '_min.csv')
 
+
 def dailizeWithList(dataset):
     dateList = [x[:10] for x in dataset.index]
     dateList = list(set(dateList))
@@ -1106,7 +1163,7 @@ def dailizeWithList(dataset):
         return dfthatday
 
 
-def dailize(df, dayCount = 50):
+def dailize(df, dayCount=50):
     df = df.set_index('time_key')
     j = 0
     k = 1
@@ -1120,6 +1177,7 @@ def dailize(df, dayCount = 50):
         j = k + 1
 
         return dfthatday
+
 
 def exclud_pre_after_market():
     watchlist = pd.read_csv('watchlistUS.csv')
@@ -1153,8 +1211,6 @@ def exclud_pre_after_market():
         print(stock_i, ' Done')
 
 
-
 if __name__ == '__main__':
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-
