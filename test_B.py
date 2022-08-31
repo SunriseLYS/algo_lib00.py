@@ -38,18 +38,17 @@ def data_check():
     sql = "USE HK_00005"
     cursor.execute(sql)
 
-    #sql = "DELETE FROM Day WHERE date='2022-08-29'"
-    #sql = "DELETE FROM Mins WHERE time_key>'2022-08-28'"
-    #cursor.execute(sql)
-    #connection.commit()
+    sql = "DELETE FROM Day WHERE date='2022-08-31'"
+    cursor.execute(sql)
+    sql = "DELETE FROM Mins WHERE time_key>'2022-08-30'"
+    cursor.execute(sql)
+    connection.commit()
     df = pd.read_sql("SELECT * FROM Mins", connection)
-    #df = pd.read_sql("SELECT * FROM Mins", connection)
     print(df.tail(50))
 
 
 if __name__ == "__main__":
-    #data_check()
-
+    data_check()
     '''
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')

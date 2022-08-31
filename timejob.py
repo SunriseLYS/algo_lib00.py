@@ -730,10 +730,10 @@ def ddcoll_HK():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     current_time = str(datetime.now().date())
+    cursor = connection.cursor()
 
     for stock_i in symbol:
         stock_i_ = stock_i.replace('.', '_')
-        cursor = connection.cursor()
 
         sql = "SHOW DATABASES LIKE %s" % ('"' + stock_i_ + '"')
         cursor.execute(sql)
@@ -878,6 +878,19 @@ def ddcoll_HK():
         df_ex = pd.read_csv('Ram/%s.csv' % (stock_i), index_col=0)
         df_ex.drop_duplicates(subset=['sequence'], keep='first', inplace=True)
         df_ex.to_csv('Ram/%s.csv' % (stock_i))
+
+        sql = "USE %s" %(stock_i_)
+        cursor.execute(sql)
+        current_time_table = current_time.replace('-', '_')
+        sql = "CREATE TABLE %s(code CHAR(8), time TIMESTAMP, price FLOAT, volume INT, turnover INT, ticker_direction CHAR(9), " \
+              "sequence BIGINT, type CHAR(21))" % (current_time_table)
+        cursor.execute(sql)
+
+        for i, row in df_ex.iterrows():
+            sqlDatabase = "INSERT INTO %s.%s" % (stock_i_, current_time_table)
+            sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+            cursor.execute(sql, tuple(row))
+            connection.commit()
 
     quote_ctx.close()
 
