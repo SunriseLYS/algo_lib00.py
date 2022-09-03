@@ -132,14 +132,9 @@ class TickerTest(TickerHandlerBase):
         return RET_OK, data_tiker
 
 
-def market_check_HK():
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    marState = quote_ctx.get_global_state()
-
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
-
+def suspension_check(quote_ctx, symbol):
     ret, data_state = quote_ctx.get_market_state(symbol)  # 檢查停牌股票
+    print(symbol)
     if ret == RET_OK:
         for state_i in range(len(data_state)):
             if data_state['market_state'][state_i] == 'CLOSED':
@@ -148,19 +143,31 @@ def market_check_HK():
         print('Market state error:', data_state)
     symbol = data_state['code'].tolist()
 
-    for i in symbol:
-        i = str(i).replace('.', '_')
-        exec('df_{} = {}'.format(i, 'pd.DataFrame()'))  # 創建動態變量
+    return symbol
 
-    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)
+
+
+def market_check_HK():
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    marState = quote_ctx.get_global_state()
+
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol = suspension_check(quote_ctx, symbol)
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+
+
+    for i in symbol_dict:
+        exec('df_{} = {}'.format(symbol_dict[i], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
+
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)   #訂閱
     if ret_sub == RET_OK:
         pass
     else:
         print('subscription failed', err_message)
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
-        for stock_i in symbol:
-            stock_i_ = stock_i.replace('.', '_')
+        for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
@@ -168,10 +175,11 @@ def market_check_HK():
                 print('error:', data)
         sleep(900)
         marState = quote_ctx.get_global_state()
+
         if marState[1]['market_hk'] == 'REST':
-            for stock_i in symbol:
-                stock_i_ = stock_i.replace('.', '_')
-                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
+            for j in symbol_dict:
+                exec('df_{}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(symbol_dict[j]))
+                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(symbol_dict[j]))
 
             while True:  # 中午休市, 迴圈至下跌開市
                 marState = quote_ctx.get_global_state()
@@ -179,9 +187,8 @@ def market_check_HK():
                     break
     else:
         print('HK Market Closed')
-        for stock_i in symbol:
-            stock_i_ = stock_i.replace('.', '_')
-            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+        for stock_i, stock_i_ in symbol_dict.items():
+            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)   #收市時, 蒐集最後一次
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_))
@@ -189,6 +196,13 @@ def market_check_HK():
                 print('error:', data)
 
         print('price collection completed')
+
+    ret_unsub, err_message_unsub = quote_ctx.unsubscribe(symbol, [SubType.TICKER], )   #取消訂閱
+    if ret_unsub == RET_OK:
+        pass
+    else:
+        print('unsubscription failed！', err_message_unsub)
+
     quote_ctx.close()
 
 
@@ -882,8 +896,8 @@ def ddcoll_HK():
         sql = "USE %s" %(stock_i_)
         cursor.execute(sql)
         current_time_table = current_time.replace('-', '_')
-        sql = "CREATE TABLE %s(code CHAR(8), time TIMESTAMP, price FLOAT, volume INT, turnover INT, ticker_direction CHAR(9), " \
-              "sequence BIGINT, type CHAR(21))" % (current_time_table)
+        sql = "CREATE TABLE %s(code CHAR(8), time TIMESTAMP, price FLOAT, volume INT, turnover INT, " \
+              "ticker_direction CHAR(9), sequence BIGINT, type CHAR(21))" % (current_time_table)
         cursor.execute(sql)
 
         for i, row in df_ex.iterrows():

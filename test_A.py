@@ -6,7 +6,8 @@ pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊�
 pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
 pd.set_option('display.max_rows', 5000)       #pandas setting 顯示行的闊度
 pd.options.mode.chained_assignment = None
-
+import mysql.connector
+from mysql.connector import Error
 import base64
 from email.message import EmailMessage
 from google.auth.transport.requests import Request
@@ -107,6 +108,36 @@ def gmail_create_draft():
         send_message = None
     return send_message
 
+
+def create_server_connection(host_name, user_name, user_password):
+    connection = None
+    try:
+        connection = mysql.connector.connect(
+            host=host_name,
+            user=user_name,
+            passwd=user_password
+        )
+        print("MySQL Database connection successful")
+    except Error as err:
+        print(f"Error: '{err}'")
+
+    return connection
+
+
+def data_check():
+    connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
+    cursor = connection.cursor()
+    sql = "USE HK_00005"
+    cursor.execute(sql)
+
+    '''
+    sql = "DELETE FROM Day WHERE date='2022-09-01'"
+    cursor.execute(sql)
+    sql = "DELETE FROM Mins WHERE time_key>'2022-08-31'"
+    cursor.execute(sql)
+    connection.commit()'''
+    df = pd.read_sql("SELECT * FROM 2022_09_02", connection)
+    print(df.tail(50))
 
 if __name__ == '__main__':
     #main()
