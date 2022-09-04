@@ -25,6 +25,31 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.dirname(
     os.path.abspath(__file__)) + "/dauntless-brace-355907-ccb9311dcf58.json"
 
+class Database:
+    def __init__(self, host_name, user_name, user_password):
+        self.connection = None
+        try:
+            self.connection = mysql.connector.connect(host=host_name,
+                                                      user=user_name,
+                                                      passwd=user_password
+                                                      )
+            self.cursor = self.connection.cursor()
+        except Error as err:
+            print(f"Error: '{err}'")
+
+    def data_request(self, stock_i_, table):
+        self.cursor.execute("USE %s" % (stock_i_))
+        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY-MM-DD
+        df = pd.DataFrame(self.cursor.fetchall())
+        return df
+
+    def creat_database(self, DB_name):
+        self.cursor.execute("CREATE DATABASE %s" % (DB_name))
+
+    def creat_table(self, DB_name, sql):
+        self.cursor.execute("USE %s" % (DB_name))
+        self.cursor.execute(sql)
+
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -48,24 +73,6 @@ def create_database(connection, query):
         print("Database created successfully")
     except Error as err:
         print(f"Error: '{err}'")
-
-
-def data_request(connection, stock_i_, table='Day'):
-    cursor = connection.cursor()
-    sql = "USE %s" % (stock_i_)
-    cursor.execute(sql)
-    sql = "SELECT * FROM %s" % (table)
-    cursor.execute(sql)
-
-    result = cursor.fetchall()
-    col_result = cursor.description
-
-    columns = []
-    for i in range(len(col_result)):
-        columns.append(col_result[i][0])
-
-    df = pd.DataFrame(result, columns=columns)
-    return df
 
 
 def gmail_create_draft(content):
@@ -157,8 +164,8 @@ def market_check_HK():
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
 
 
-    for i in symbol_dict:
-        exec('df_{} = {}'.format(symbol_dict[i], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
+    for j in symbol_dict:
+        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
 
     ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)   #訂閱
     if ret_sub == RET_OK:

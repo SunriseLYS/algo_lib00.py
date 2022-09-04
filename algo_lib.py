@@ -8,88 +8,75 @@ from time import sleep
 from datetime import datetime, time
 
 
-def dataPrepare(df = pd.DataFrame(), nextCH = 1, minCH = 30):
+def dataPrepare(df=pd.DataFrame(), nextCH=1, minCH=30):
     sortList = ['time_key', 'open', 'close', 'high', 'low', 'turnover', 'mid', 'next 1 ch', 'open dif', 'close dif',
                 'high dif', 'low dif']
     delList = ['Unnamed: 0', 'turnover_rate', 'volume', 'pe_ratio', 'change_rate']
-    for i in range(len(delList)):          #按deList刪除列
+    for i in range(len(delList)):  # 按deList刪除列
         if delList[i] in df.columns:
-            df.drop(delList[i], axis = 1, inplace = True)
+            df.drop(delList[i], axis=1, inplace=True)
 
-    df['mid'] = (df['high'] + df['low']) / 2         #中位數
+    df['mid'] = (df['high'] + df['low']) / 2  # 中位數
 
-    for m in range(1, nextCH + 1):      #下一分鐘的變動
-        df['next %s mid' %(m)] = df['mid'].shift(-m)
-        df['next %s ch' %(m)] = df['next %s mid' %(m)] - df['mid']
-        df.drop(['next %s mid' %(m)], axis=1, inplace=True)
-        #dropList.append('next %s mid' %(m))
+    for m in range(1, nextCH + 1):  # 下一分鐘的變動
+        df['next %s mid' % (m)] = df['mid'].shift(-m)
+        df['next %s ch' % (m)] = df['next %s mid' % (m)] - df['mid']
+        df.drop(['next %s mid' % (m)], axis=1, inplace=True)
+        # dropList.append('next %s mid' %(m))
 
-    '''
-    df['date'] = [x[:10] for x in df['time_key']]
-    dateList = df['date'].tolist()
-    dateList = list(set(dateList))
-    dateList.sort()
-    
-    df['opening time'] = None
-    for k in range(len(dateList)):
-        OT = df.loc[df['date'] == dateList[k]].index.tolist()
-        openT = 0
-        for i in OT:
-            df['opening time'][i] = openT
-            openT += 1
-    '''
     df['open dif'] = df['open'] - df['mid']
     df['close dif'] = df['close'] - df['mid']
     df['high dif'] = df['high'] - df['mid']
     df['low dif'] = df['low'] - df['mid']
 
-    for j in range(1, minCH + 1):      #比較N分鐘前的變動
-        df['p%sb' %(j)] = df['mid'].shift(j)
-        df['ch%sb' %(j)] = df['mid'] - df['p%sb' %(j)]
+    for j in range(1, minCH + 1):  # 比較N分鐘前的變動
+        df['p%sb' % (j)] = df['mid'].shift(j)
+        df['ch%sb' % (j)] = df['mid'] - df['p%sb' % (j)]
         df['high%sb' % (j)] = df['high'].shift(j)
         df['high ch%sb' % (j)] = df['high'] - df['high%sb' % (j)]
         df['low%sb' % (j)] = df['low'].shift(j)
         df['low ch%sb' % (j)] = df['low'] - df['low%sb' % (j)]
 
-        #dropList.append('p%sb' % (j))
-        #dropList.append('high%sb' % (j))
-        #dropList.append('low%sb' % (j))
+        # dropList.append('p%sb' % (j))
+        # dropList.append('high%sb' % (j))
+        # dropList.append('low%sb' % (j))
         df.drop(['p%sb' % (j), 'high%sb' % (j), 'low%sb' % (j)], axis=1, inplace=True)
 
-        sortList.append('ch%sb' %(j))
+        sortList.append('ch%sb' % (j))
         sortList.append('high ch%sb' % (j))
         sortList.append('low ch%sb' % (j))
 
-    for k in range(10, 100, 10):    #成交增長
-        df['%sbuying power' %(k)] = df['turnover'] - df['turnover'].rolling(k).mean()
+    for k in range(10, 100, 10):  # 成交增長
+        df['%sbuying power' % (k)] = df['turnover'] - df['turnover'].rolling(k).mean()
 
-        sortList.append('%sbuying power' %(k))
+        sortList.append('%sbuying power' % (k))
 
-    #加入第2, 3高及低值
+    # 加入第2, 3高及低值
     for l in [5, 10, 20]:
         minCount = l * 330
-        df['%sday high' %(l)] = df['high'].rolling(minCount).max()
-        df['%s high dif' %(l)] = df['%sday high' %(l)] - df['mid']
-        df['%sday low' %(l)] = df['low'].rolling(minCount).min()
-        df['%s low dif' %(l)] = df['%sday low' %(l)] - df['mid']
+        df['%sday high' % (l)] = df['high'].rolling(minCount).max()
+        df['%s high dif' % (l)] = df['%sday high' % (l)] - df['mid']
+        df['%sday low' % (l)] = df['low'].rolling(minCount).min()
+        df['%s low dif' % (l)] = df['%sday low' % (l)] - df['mid']
 
-        #dropList.append('%sday high' %(l))
-        #dropList.append('%sday low' %(l))
-        df.drop(['%sday high' %(l), '%sday low' %(l)], axis=1, inplace=True)
+        # dropList.append('%sday high' %(l))
+        # dropList.append('%sday low' %(l))
+        df.drop(['%sday high' % (l), '%sday low' % (l)], axis=1, inplace=True)
 
-        sortList.append('%s high dif' %(l))
-        sortList.append('%s low dif' %(l))
+        sortList.append('%s high dif' % (l))
+        sortList.append('%s low dif' % (l))
 
     df = df[sortList]
 
-    df.reset_index(inplace = True, drop = True)
+    df.reset_index(inplace=True, drop=True)
 
-    df_short = df[len(df)-10000:len(df)]
+    df_short = df[len(df) - 10000:len(df)]
     df_short.reset_index(inplace=True, drop=True)
 
     return df, df_short
 
-def dataPrepare1(df, nextCH = 1, minCH = 30):
+
+def dataPrepare1(df, nextCH=1, minCH=30):
     delList = ['Unnamed: 0', 'turnover_rate', 'volume', 'pe_ratio', 'change_rate']
     for i in range(len(delList)):  # 按deList刪除列
         if delList[i] in df.columns:
@@ -139,13 +126,13 @@ def dataPrepare1(df, nextCH = 1, minCH = 30):
     df['day high'] = pd.to_numeric(df['day high'], errors='coerce')
     df['day low'] = pd.to_numeric(df['day high'], errors='coerce')
 
-
     df.reset_index(inplace=True, drop=True)
 
     df_short = df[len(df) - 10000:len(df)]
     df_short.reset_index(inplace=True, drop=True)
 
     return df, df_short
+
 
 def dataPreparation(dataset, newData, minCH=30):
     newData['mid'] = (newData['high'] + newData['low']) / 2
@@ -155,9 +142,9 @@ def dataPreparation(dataset, newData, minCH=30):
     newData['low dif'] = newData['low'] - newData['mid']
     dataset = pd.concat([dataset, newData], ignore_index=True)
 
-    for i in range(1, minCH + 1):      #比較N分鐘前的變動
-        dataset['p%sb' %(i)] = dataset['mid'].shift(i)
-        dataset['ch%sb' %(i)] = dataset['mid'] - dataset['p%sb' %(i)]
+    for i in range(1, minCH + 1):  # 比較N分鐘前的變動
+        dataset['p%sb' % (i)] = dataset['mid'].shift(i)
+        dataset['ch%sb' % (i)] = dataset['mid'] - dataset['p%sb' % (i)]
         dataset['high%sb' % (i)] = dataset['high'].shift(i)
         dataset['high ch%sb' % (i)] = dataset['high'] - dataset['high%sb' % (i)]
         dataset['low%sb' % (i)] = dataset['low'].shift(i)
@@ -166,14 +153,15 @@ def dataPreparation(dataset, newData, minCH=30):
         dataset.drop(['p%sb' % (i), 'high%sb' % (i), 'low%sb' % (i)], axis=1, inplace=True)
 
     for j in range(10, 100, 10):
-        dataset['%sbuying power' %(j)] = dataset['turnover'] - dataset['turnover'].rolling(j).mean()
+        dataset['%sbuying power' % (j)] = dataset['turnover'] - dataset['turnover'].rolling(j).mean()
 
     for k in [5, 10, 20]:
         minCount = k * 330
-        dataset['%s high dif' %(k)] = dataset['high'].rolling(minCount).max() - dataset['mid']
-        dataset['%s low dif' %(k)] = dataset['low'].rolling(minCount).min() - dataset['mid']
+        dataset['%s high dif' % (k)] = dataset['high'].rolling(minCount).max() - dataset['mid']
+        dataset['%s low dif' % (k)] = dataset['low'].rolling(minCount).min() - dataset['mid']
 
     return dataset, dataset.tail(1)
+
 
 def dataPreparation1(dataset, newData, minCH=30, openTime=0):
     dataset = pd.concat([dataset, newData], ignore_index=True)
@@ -204,6 +192,7 @@ def dataPreparation1(dataset, newData, minCH=30, openTime=0):
     dataset['day low'] = pd.to_numeric(dataset['day high'], errors='coerce')
 
     return dataset, dataset.tail(1)
+
 
 def predict(latestData, sortList, mean, std, mean_target, std_target):
     latestData.drop(['time_key', 'open', 'close', 'turnover'], axis=1, inplace=True)
@@ -246,7 +235,7 @@ def supTodayData(stock_i):
         if ret == RET_OK:
             print(data)
             data.drop(['code', 'last_close', 'turnover_rate', 'volume', 'pe_ratio'], axis=1, inplace=True)
-            data.drop(len(data)-1, inplace=True)
+            data.drop(len(data) - 1, inplace=True)
             df = pd.concat([df, data], ignore_index=True)
 
             return df
@@ -254,6 +243,7 @@ def supTodayData(stock_i):
             print('error:', data)
     else:
         print('subscription failed', err_message)
+
 
 def tradeCheck(orderID, qty, side):
     trd_ctx = OpenFutureTradeContext(host='127.0.0.1', port=11111, security_firm=SecurityFirm.FUTUSECURITIES)
@@ -279,7 +269,7 @@ def tradeCheck(orderID, qty, side):
     trd_ctx.close()
 
 
-def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, position_Loss, lastPosition_Loss):
+def trade(prediction, pwd_unlock, trd_ctx, product_code, position_Loss, lastPosition_Loss):
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     ret, data = trd_ctx.unlock_trade(pwd_unlock)
     lastPrice, minLoss = int(0), int(0)
@@ -289,7 +279,7 @@ def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, po
     if ret == RET_OK:
         print(data_position)
         if data_position.shape[0] > 0:
-            if data_position['position_side'][0] == 'SHORT':  #優化
+            if data_position['position_side'][0] == 'SHORT':  # 優化
                 positionQty_Short = data_position['qty'][0]
             elif data_position['position_side'][0] == 'LONG':
                 positionQty_Long = data_position['qty'][0]
@@ -300,22 +290,25 @@ def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, po
                 elif data_position['position_side'][1] == 'LONG':
                     positionQty_Long = data_position['qty'][1]
 
-            #cost = data_position['qty'][0]
-    else: print('position_list_query error: ', data_position)
+            # cost = data_position['qty'][0]
+    else:
+        print('position_list_query error: ', data_position)
 
     ret_sub, err_message = quote_ctx.subscribe(['HK.MHIcurrent'], [SubType.QUOTE], subscribe_push=False)
     if ret_sub == RET_OK:
         ret, data_Price = quote_ctx.get_stock_quote(['HK.MHIcurrent'])
         if ret == RET_OK:
             lastPrice = latestPrice
-            latestPrice = data_Price['last_price'][0]        #取得最新價
-        else: print('error:', data_Price)
-    else: print('subscription failed', err_message)
+            latestPrice = data_Price['last_price'][0]  # 取得最新價
+        else:
+            print('error:', data_Price)
+    else:
+        print('subscription failed', err_message)
 
-    if position_Loss < lastPosition_Loss:     #如對比上一分鐘, 價格下跌了超過30點便會觸發止蝕
+    if position_Loss < lastPosition_Loss:  # 如對比上一分鐘, 價格下跌了超過30點便會觸發止蝕
         minLoss = lastPosition_Loss - position_Loss
 
-    if minLoss < -300 or position_Loss < -600: #止蝕
+    if minLoss < -300 or position_Loss < -600:  # 止蝕
         if positionQty_Long > 0:
             ret, data_place = trd_ctx.place_order(price=latestPrice, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.SELL,
                                                   order_type=OrderType.MARKET)
@@ -325,21 +318,21 @@ def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, po
         print('止蝕, 靜止')
         print(data_place)
         coldDown = 1
-    elif prediction > 0 and positionQty_Long == 0 and positionQty_Short == 0: #上升預測及未開倉
+    elif prediction > 0 and positionQty_Long == 0 and positionQty_Short == 0:  # 上升預測及未開倉
         ret, data_place = trd_ctx.place_order(price=latestPrice - 6, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.BUY)
         print('買入')
         print(data_place)
         orderID = data_place['order_id'][0]
-        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, 1, ))
+        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, 1,))
         worker0.start()
-    elif prediction < 0 and positionQty_Long == 0 and positionQty_Short == 0: #下跌預測及未開倉
+    elif prediction < 0 and positionQty_Long == 0 and positionQty_Short == 0:  # 下跌預測及未開倉
         ret, data_place = trd_ctx.place_order(price=latestPrice + 6, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.SELL)
         print('沽出')
         print(data_place)
         orderID = data_place['order_id'][0]
-        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, -1, ))
+        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, -1,))
         worker0.start()
-    elif prediction > 0 and positionQty_Short < 0:  #上升預測, 但持有短倉
+    elif prediction > 0 and positionQty_Short < 0:  # 上升預測, 但持有短倉
         print('平倉, 買入')
         ret, data_place = trd_ctx.place_order(price=latestPrice, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.SELL,
                                               order_type=OrderType.MARKET)
@@ -347,9 +340,9 @@ def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, po
         ret, data_place = trd_ctx.place_order(price=latestPrice - 6, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.BUY)
         print(data_place)
         orderID = data_place['order_id'][0]
-        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, 1, ))
+        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, 1,))
         worker0.start()
-    elif prediction < 0 and positionQty_Long > 0:  #下跌預測, 但持有長倉
+    elif prediction < 0 and positionQty_Long > 0:  # 下跌預測, 但持有長倉
         print('平倉, 沽出')
         ret, data_place = trd_ctx.place_order(price=latestPrice, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.SELL,
                                               order_type=OrderType.MARKET)
@@ -357,11 +350,11 @@ def trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, po
         ret, data_place = trd_ctx.place_order(price=latestPrice + 6, qty=1, code='HK.MHIcurrent', trd_side=TrdSide.SELL)
         print(data_place)
         orderID = data_place['order_id'][0]
-        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, -1, ))
+        worker0 = mp.Process(target=tradeCheck, args=(orderID, 1, -1,))
         worker0.start()
-    elif prediction > 0 and positionQty_Long > 0:  #上升預測及已經有長倉
+    elif prediction > 0 and positionQty_Long > 0:  # 上升預測及已經有長倉
         pass
-    elif prediction < 0 and positionQty_Short < 0:  #下跌預測及已經有短倉
+    elif prediction < 0 and positionQty_Short < 0:  # 下跌預測及已經有短倉
         pass
 
     quote_ctx.close()
@@ -390,7 +383,7 @@ def trading_Future(stock_i, mean, std, mean_target, std_target, pwd_unlock):
         ret_sub, err_message = quote_ctx.subscribe([stock_i], [SubType.K_1M], subscribe_push=False)
         while time(9, 30) <= current_time < time(11, 50) or time(13, 0) <= current_time < time(20, 50):
             current_time = datetime.now().time()
-            if str(current_time)[6:8] == '57':#如果一開市即刻拿取資料, 那一分鐘的資料並不完全
+            if str(current_time)[6:8] == '57':  # 如果一開市即刻拿取資料, 那一分鐘的資料並不完全
                 ret, data_Account = trd_ctx.accinfo_query()
                 print(data_Account['unrealized_pl'].sum(), data_Account['realized_pl'].sum())
                 lastPosition_Loss = position_Loss
@@ -412,22 +405,20 @@ def trading_Future(stock_i, mean, std, mean_target, std_target, pwd_unlock):
                     print(dataset.tail(5))
                     dataset.drop(range(len(dataset) - openTime, len(dataset)), inplace=True)
 
-                    if openTime > 30: # 前30分鐘不交易
+                    if openTime > 30:  # 前30分鐘不交易
                         '''
                         lastPrice, coldDown = trade(predict_low_ch, predict_high_ch, pwd_unlock, trd_ctx, product_code, position_Loss, lastPosition_Loss)
                         if coldDown == 1:
                             openTime = 0'''
 
                     openTime += 1
-                    newTrade = {'time': str(current_time), 'prediction 1': predict_low_ch, 'prediction 2': predict_high_ch, 'Price': lastPrice}
+                    newTrade = {'time': str(current_time), 'prediction 1': predict_low_ch,
+                                'prediction 2': predict_high_ch, 'Price': lastPrice}
                     lastPrice = 0
                     trade_record = trade_record.append(newTrade, ignore_index=True)
             sleep(1)
-
 
     quote_ctx.close()
     trade_record.to_csv('Database/' + stock_i + '/' + stock_i + '_trade.csv')
     dataset.to_csv('Database/' + stock_i + '/' + stock_i + '_Today.csv')
     print('Day end')
-
-
