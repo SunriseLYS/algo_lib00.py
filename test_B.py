@@ -58,7 +58,7 @@ class Database:
         self.cursor.execute("SHOW columns FROM %s" % (table))
         column_list= [i[0] for i in self.cursor.fetchall()]
 
-        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY-MM-DD
+        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
         df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
         return df
 
@@ -76,9 +76,9 @@ if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()'''
     DB = Database('103.68.62.116', 'root', '630A78e77?')
-    df = DB.data_request('HK_00005', '2022_09_02')
+    df = DB.data_request('HK_00005', '2022_09_01')
 
-    print(df.head(10))
+    df.to_csv('HK_00005_2022_09_01.csv')
 
 
 

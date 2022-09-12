@@ -39,7 +39,7 @@ class Database:
 
     def data_request(self, stock_i_, table):
         self.cursor.execute("USE %s" % (stock_i_))
-        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY-MM-DD
+        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
         df = pd.DataFrame(self.cursor.fetchall())
         return df
 
@@ -75,7 +75,7 @@ def create_database(connection, query):
         print(f"Error: '{err}'")
 
 
-def gmail_create_draft(content):
+def gmail_create_draft(emailAdd, sub, content):
     creds, _ = google.auth.default()
 
     if os.path.exists('token.json'):
@@ -98,9 +98,9 @@ def gmail_create_draft(content):
 
         message.set_content(str(content))
 
-        message['To'] = 'alphax.lys@gmail.com'
+        message['To'] = emailAdd
         message['From'] = 'origin.sunrise@gmail.com'
-        message['Subject'] = 'Automated draft'
+        message['Subject'] = sub
 
         # encoded message
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()) \
@@ -190,6 +190,7 @@ def market_check_HK():
 
             while True:  # 中午休市, 迴圈至下跌開市
                 marState = quote_ctx.get_global_state()
+                sleep(300)
                 if marState[1]['market_hk'] != 'REST':
                     break
     else:
@@ -204,7 +205,7 @@ def market_check_HK():
 
         print('price collection completed')
 
-    ret_unsub, err_message_unsub = quote_ctx.unsubscribe(symbol, [SubType.TICKER], )   #取消訂閱
+    ret_unsub, err_message_unsub = quote_ctx.unsubscribe(symbol, [SubType.TICKER])   #取消訂閱
     if ret_unsub == RET_OK:
         pass
     else:
@@ -915,17 +916,7 @@ def ddcoll_HK():
 
     quote_ctx.close()
 
-    '''
-    for i in symbol:
-        i = i.replace('.', '_')
-        sql = 'USE %s' % (i)
-        cursor.execute(sql)
-        sql = "CREATE TABLE T01(time_key TIMESTAMP, open FLOAT, close FLOAT, high FLOAT, low FLOAT, " \
-              "volume INT, turnover BIGINT, change_rate FLOAT, mid FLOAT, pre_close FLOAT)"
-        cursor.execute(sql)    
-    '''
-
-    # gmail_create_draft('HK Data collection completed')
+    gmail_create_draft('HK Data collection completed')
 
 
 def ddcoll_US():
@@ -1246,5 +1237,5 @@ def exclud_pre_after_market():
 
 
 if __name__ == '__main__':
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
+    gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
+

@@ -10,7 +10,7 @@ watchlist = pd.read_csv('watchlist.csv', index_col = 0, encoding = 'Big5')
 #watchlistUS = pd.read_csv('watchlistUS.csv', index_col = 0)
 #Ticket = list(watchlist['Futu symbol']) + list(watchlistUS['Futu symbol'])
 Ticket = list(watchlist['Futu symbol'])
-
+Ticket = Ticket[:6]
 Ticket1 = Ticket[:len(Ticket)//6]
 Ticket2 = Ticket[len(Ticket)//6:len(Ticket)//6*2]
 Ticket3 = Ticket[len(Ticket)//6*2:len(Ticket)//6*3]
@@ -35,7 +35,7 @@ def create_server_connection(host_name, user_name, user_password):
     return connection
 
 if __name__ == '__main__' :
-    connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
+    #connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     PL = Pool(6)
     for stock_i in Ticket:
         PL.apply_async(Techanalysis.beta, (stock_i, ))

@@ -8,7 +8,7 @@ import itertools
 import mysql.connector
 from mysql.connector import Error
 pd.options.mode.chained_assignment = None
-pd.set_option('display.max_rows', 360)
+pd.set_option('display.max_rows', 5000)
 pd.set_option('display.max_columns', 10)       #pandas setting 顥示列數上限
 pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊度
 
@@ -1752,7 +1752,7 @@ def model3V(dfD, dfM):   #model3 cash flow的延伸, 以投票方式決定當日
 
 def model3V_RT(dfM):   #3V簡化
     dfM.reset_index(drop=True, inplace=True)
-    dfM.drop(dfM[dfM['last_close'] == 0].index, inplace=True)
+    #dfM.drop(dfM[dfM['last_close'] == 0].index, inplace=True)
 
     dfM = model_target_in_out_flow(dfM, 100)
 
@@ -1843,9 +1843,11 @@ def model_testing(symbol):
 
 
 if __name__ == '__main__':
-    watchlist = pd.read_csv('watchlist.csv', index_col=0, encoding='Big5')
-    Ticket = list(watchlist['Futu symbol'])
-    stock_i = 'HK.00700'
+    df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    print(df)
+    price_list = sorted(set(df['price']))
+    print(price_list)
 
 
 
