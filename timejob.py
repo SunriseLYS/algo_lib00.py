@@ -76,6 +76,7 @@ def create_database(connection, query):
 
 
 def gmail_create_draft(emailAdd, sub, content):
+    '''address, subject, content'''
     creds, _ = google.auth.default()
 
     if os.path.exists('token.json'):
@@ -174,20 +175,34 @@ def market_check_HK():
         print('subscription failed', err_message)
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
+        start_time = str(datetime.now())
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+                exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
             else:
                 print('error:', data)
+        end_time = str(datetime.now())
+        try:
+            for l in symbol_dict:
+                df_group = pd.DataFrame()
+                exec("df_group = df_{}.groupby('price')['turnover'].sum()".format(symbol_dict[l]))
+                df_group.to_csv('Ram/' + symbol_dict[l] + ' group.csv')
+        except:
+            pass
+        try:
+            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, 'market check')
+        except:
+            pass
+
         sleep(900)
         marState = quote_ctx.get_global_state()
 
-        if marState[1]['market_hk'] == 'REST':
-            for j in symbol_dict:
-                exec('df_{}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(symbol_dict[j]))
-                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(symbol_dict[j]))
 
+        if marState[1]['market_hk'] == 'REST':
+            for k in symbol_dict:
+                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(symbol_dict[k]))
             while True:  # 中午休市, 迴圈至下跌開市
                 marState = quote_ctx.get_global_state()
                 sleep(300)
@@ -504,8 +519,6 @@ def realTimeAnalysis(symbol, dfsnap):
     att1 = 'EmailAtt/Tech_Table_H.csv'
     att2 = 'EmailAtt/Tech_Table_R.csv'
     att3 = 'EmailAtt/pn_Table.csv'
-
-    gmail_create_draft(Msg)
 
 
 def datarequest(symbol):
@@ -916,7 +929,7 @@ def ddcoll_HK():
 
     quote_ctx.close()
 
-    gmail_create_draft('HK Data collection completed')
+    gmail_create_draft('alphax.lys@gmail.com', 'collection', 'HK Data collection completed')
 
 
 def ddcoll_US():

@@ -1845,9 +1845,13 @@ def model_testing(symbol):
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
-    print(df)
     price_list = sorted(set(df['price']))
+
+    a = df.groupby('price')['turnover'].sum()
+
+    print(df)
     print(price_list)
+    print(a)
 
 
 
