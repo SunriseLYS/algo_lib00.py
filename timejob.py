@@ -39,8 +39,11 @@ class Database:
 
     def data_request(self, stock_i_, table):
         self.cursor.execute("USE %s" % (stock_i_))
+        self.cursor.execute("SHOW columns FROM %s" % (table))
+        column_list= [i[0] for i in self.cursor.fetchall()]
+
         self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
-        df = pd.DataFrame(self.cursor.fetchall())
+        df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
         return df
 
     def creat_database(self, DB_name):
@@ -153,6 +156,11 @@ def suspension_check(quote_ctx, symbol):
 
     return symbol
 
+def model3(df):
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    distribution_T = df.groupby('price')['turnover'].sum()
+
+    return distribution_T
 
 
 def market_check_HK():
@@ -225,6 +233,10 @@ def market_check_HK():
         pass
     else:
         print('unsubscription failed！', err_message_unsub)
+
+    sleep(1200)
+
+    ddcoll_HK(quote_ctx, symbol)
 
     quote_ctx.close()
 
@@ -759,10 +771,7 @@ def emailnotice():
     Tech_Table_R.to_csv('EmailAtt/Tech_Table_R.csv')
 
 
-def ddcoll_HK():
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+def ddcoll_HK(quote_ctx, symbol):
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     current_time = str(datetime.now().date())
     cursor = connection.cursor()

@@ -142,6 +142,6 @@ def data_check():
 
 if __name__ == '__main__':
     #main()
-    data_check()
-    #gmail_create_draft()
+    #data_check()
+    gmail_create_draft()
 

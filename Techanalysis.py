@@ -15,6 +15,34 @@ pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊�
 
 Hit_Rate = lambda a, b: a / b if b > 0 else 0
 
+class Database:
+    def __init__(self, host_name, user_name, user_password):
+        self.connection = None
+        try:
+            self.connection = mysql.connector.connect(host=host_name,
+                                                      user=user_name,
+                                                      passwd=user_password
+                                                      )
+            self.cursor = self.connection.cursor()
+        except Error as err:
+            print(f"Error: '{err}'")
+
+    def data_request(self, stock_i_, table):
+        self.cursor.execute("USE %s" % (stock_i_))
+        self.cursor.execute("SHOW columns FROM %s" % (table))
+        column_list= [i[0] for i in self.cursor.fetchall()]
+
+        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
+        df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
+        return df
+
+    def creat_database(self, DB_name):
+        self.cursor.execute("CREATE DATABASE %s" % (DB_name))
+
+    def creat_table(self, DB_name, sql):
+        self.cursor.execute("USE %s" % (DB_name))
+        self.cursor.execute(sql)
+
 def create_server_connection(host_name, user_name, user_password):
     connection = None
     try:
@@ -1845,13 +1873,18 @@ def model_testing(symbol):
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
-    price_list = sorted(set(df['price']))
-
     a = df.groupby('price')['turnover'].sum()
 
-    print(df)
-    print(price_list)
-    print(a)
+    df1 = pd.read_csv('HK_00005_2022_09_02.csv', index_col=0)
+    df1.drop(df1[df1['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    b = df1.groupby('price')['turnover'].sum()
+
+
+    print(df['volume'].mean())
+
+    from timejob import gmail_create_draft
+
+    gmail_create_draft('alphax.lys@gmail.com', 'collection', a)
 
 
 
