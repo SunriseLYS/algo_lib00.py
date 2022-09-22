@@ -127,15 +127,15 @@ def create_server_connection(host_name, user_name, user_password):
 def data_check():
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     cursor = connection.cursor()
-    sql = "USE HK_00005"
+    sql = "USE HK_00016"
     cursor.execute(sql)
 
     df = pd.read_sql("SELECT * FROM Day", connection)
 
-    sql = "DELETE FROM Day WHERE date='2022-09- '"
+    sql = "DELETE FROM Day WHERE date='2022-09-19'"
     cursor.execute(sql)
     connection.commit()
-    sql = "DELETE FROM Mins WHERE time_key>'2022-09- '"
+    sql = "DELETE FROM Mins WHERE time_key>'2022-09-18'"
     cursor.execute(sql)
     connection.commit()
     print(df.tail(5))
@@ -143,5 +143,7 @@ def data_check():
 if __name__ == '__main__':
     #main()
     #data_check()
-    gmail_create_draft()
+    #gmail_create_draft()
+
+
 

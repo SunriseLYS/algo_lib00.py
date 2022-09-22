@@ -1879,12 +1879,13 @@ if __name__ == '__main__':
     df1.drop(df1[df1['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     b = df1.groupby('price')['turnover'].sum()
 
-
+    print(len(a))
+    print(a)
     print(df['volume'].mean())
-
+    print(a.nlargest(1))
+    '''
     from timejob import gmail_create_draft
-
-    gmail_create_draft('alphax.lys@gmail.com', 'collection', a)
+    gmail_create_draft('alphax.lys@gmail.com', 'collection', a)'''
 
 
 

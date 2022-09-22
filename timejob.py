@@ -171,6 +171,7 @@ def market_check_HK():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    dtt = None
 
 
     for j in symbol_dict:
@@ -191,6 +192,11 @@ def market_check_HK():
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
             else:
                 print('error:', data)
+            try:
+                if stock_i == 'HK.00005':
+                    dtt = exec('model3(df_{stock_i_})'.format(stock_i_=stock_i_))
+            except:
+                pass
         end_time = str(datetime.now())
         try:
             for l in symbol_dict:
@@ -200,7 +206,7 @@ def market_check_HK():
         except:
             pass
         try:
-            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, 'market check')
+            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, 'market check' + dtt)
         except:
             pass
 
@@ -1259,5 +1265,12 @@ def exclud_pre_after_market():
 
 
 if __name__ == '__main__':
-    gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
+    #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    dtt = None
+
+    for l in symbol_dict:
+        print(symbol_dict[l])
 
