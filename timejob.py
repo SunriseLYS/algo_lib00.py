@@ -194,17 +194,10 @@ def market_check_HK():
                 print('error:', data)
             try:
                 if stock_i == 'HK.00005':
-                    dtt = exec('model3(df_{stock_i_})'.format(stock_i_=stock_i_))
+                    exec('dtt = model3(df_{stock_i_})'.format(stock_i_=stock_i_))
             except:
                 pass
         end_time = str(datetime.now())
-        try:
-            for l in symbol_dict:
-                df_group = pd.DataFrame()
-                exec("df_group = df_{}.groupby('price')['turnover'].sum()".format(symbol_dict[l]))
-                df_group.to_csv('Ram/' + symbol_dict[l] + ' group.csv')
-        except:
-            pass
         try:
             gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, 'market check' + dtt)
         except:

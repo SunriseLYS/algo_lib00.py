@@ -57,7 +57,7 @@ def main():
         print(f'An error occurred: {error}')
 
 
-def gmail_create_draft():
+def gmail_create_draft(con):
     """Create and insert a draft email.
        Print the returned draft's message and id.
        Returns: Draft object, including draft id and message meta data.
@@ -86,7 +86,7 @@ def gmail_create_draft():
         service = build('gmail', 'v1', credentials=creds)
         message = EmailMessage()
 
-        message.set_content('This is automated draft \n mail')
+        message.set_content(con)
 
         message['To'] = 'alphax.lys@gmail.com'
         message['From'] = 'origin.sunrise@gmail.com'
@@ -127,21 +127,82 @@ def create_server_connection(host_name, user_name, user_password):
 def data_check():
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     cursor = connection.cursor()
-    sql = "USE HK_00016"
-    cursor.execute(sql)
 
-    df = pd.read_sql("SELECT * FROM Day", connection)
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol = symbol[:3]
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
 
-    sql = "DELETE FROM Day WHERE date='2022-09-19'"
-    cursor.execute(sql)
-    connection.commit()
-    sql = "DELETE FROM Mins WHERE time_key>'2022-09-18'"
-    cursor.execute(sql)
-    connection.commit()
-    print(df.tail(5))
+    for i in symbol_dict:
+        sql = "USE %s" %(symbol_dict[i])
+        cursor.execute(sql)
+
+        sql = "DELETE FROM Day WHERE date='2022-09-23'"
+        cursor.execute(sql)
+        connection.commit()
+        sql = "DELETE FROM Mins WHERE time_key>'2022-09-22'"
+        cursor.execute(sql)
+        connection.commit()
+
+        df = pd.read_sql("SELECT * FROM Day", connection)
+        print(df.tail(5))
+
+from futu import *
+
+def model3(df, P_level = None):   # P_level應是現價
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    distribution_T = df.groupby('price')['turnover'].sum()
+
+    if P_level is None:
+        import statistics
+        list_P = distribution_T.index
+        P_level = statistics.median(list_P)
+
+    distribution_T = pd.DataFrame(distribution_T)
+    #distribution_T.reset_index(inplace=True)
+    distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
+    distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
+
+    print(distribution_T)
+    an = (distribution_T['distribution'].sum() / distribution_T['turnover'].abs().sum()) * 100
+    print(round(an, 4))
+
+    time.sleep(1)
+
+
+    return distribution_T
+
+def test():
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol = symbol[:3]
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+
+    for j in symbol_dict:
+        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
+
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)   #訂閱
+    if ret_sub == RET_OK:
+        pass
+    else:
+        print('subscription failed', err_message)
+
+    for stock_i, stock_i_ in symbol_dict.items():
+        ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+        if ret == RET_OK:
+            exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+            exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
+            exec('dtt = model3(df_{stock_i_})'.format(stock_i_=stock_i_))
+            #gmail_create_draft()
+        else:
+            print('error:', data)
+    quote_ctx.close()
+
 
 if __name__ == '__main__':
-    #main()
+    test()
     #data_check()
     #gmail_create_draft()
 
