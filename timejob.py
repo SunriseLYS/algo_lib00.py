@@ -156,14 +156,30 @@ def suspension_check(quote_ctx, symbol):
 
     return symbol
 
-def model3(df):
+def model3(df, P_level = None):   # P_level應是現價
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     distribution_T = df.groupby('price')['turnover'].sum()
 
-    return distribution_T
+    if P_level is None:
+        import statistics
+        list_P = distribution_T.index
+        P_level = statistics.median(list_P)
+
+    distribution_T = pd.DataFrame(distribution_T)
+    #distribution_T.reset_index(inplace=True)
+    distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
+    distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
+
+    an = (distribution_T['distribution'].sum() / distribution_T['turnover'].abs().sum()) * 100
+    m3_value = round(an, 4)
+
+    time.sleep(1)
+
+    return m3_value
 
 
 def market_check_HK():
+    sleep(10)   # 避免太快，伺服器還未更新
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     marState = quote_ctx.get_global_state()
 
@@ -171,8 +187,7 @@ def market_check_HK():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
-    dtt = None
-
+    model3_result = dict.fromkeys(symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -190,16 +205,13 @@ def market_check_HK():
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
+                exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
             else:
                 print('error:', data)
-            try:
-                if stock_i == 'HK.00005':
-                    exec('dtt = model3(df_{stock_i_})'.format(stock_i_=stock_i_))
-            except:
-                pass
         end_time = str(datetime.now())
         try:
-            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, 'market check' + dtt)
+            model3_result = str(model3_result).replace(',', '\n')
+            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result)
         except:
             pass
 

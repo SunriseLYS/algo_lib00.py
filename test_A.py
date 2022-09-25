@@ -86,7 +86,7 @@ def gmail_create_draft(con):
         service = build('gmail', 'v1', credentials=creds)
         message = EmailMessage()
 
-        message.set_content(con)
+        message.set_content(str(con))
 
         message['To'] = 'alphax.lys@gmail.com'
         message['From'] = 'origin.sunrise@gmail.com'
@@ -163,14 +163,12 @@ def model3(df, P_level = None):   # P_level應是現價
     distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
     distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
 
-    print(distribution_T)
     an = (distribution_T['distribution'].sum() / distribution_T['turnover'].abs().sum()) * 100
-    print(round(an, 4))
+    m3_value = round(an, 4)
 
     time.sleep(1)
 
-
-    return distribution_T
+    return m3_value
 
 def test():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
@@ -179,6 +177,7 @@ def test():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = symbol[:3]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    model3_result = dict.fromkeys(symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -194,15 +193,18 @@ def test():
         if ret == RET_OK:
             exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
             exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
-            exec('dtt = model3(df_{stock_i_})'.format(stock_i_=stock_i_))
-            #gmail_create_draft()
+            exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
+
         else:
             print('error:', data)
     quote_ctx.close()
-
+    print(model3_result)
+    model3_result = str(model3_result).replace(',', '\n')
+    gmail_create_draft(model3_result)
 
 if __name__ == '__main__':
     test()
+    #gmail_create_draft()
     #data_check()
     #gmail_create_draft()
 
