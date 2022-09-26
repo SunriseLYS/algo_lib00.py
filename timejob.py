@@ -205,7 +205,10 @@ def market_check_HK():
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
-                exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
+                try:
+                    model3_result[stock_i] = exec('model3(df_{stock_i_})'.format(stock_i_=stock_i_))
+                except:
+                    pass
             else:
                 print('error:', data)
         end_time = str(datetime.now())

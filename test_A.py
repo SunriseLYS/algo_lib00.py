@@ -137,10 +137,10 @@ def data_check():
         sql = "USE %s" %(symbol_dict[i])
         cursor.execute(sql)
 
-        sql = "DELETE FROM Day WHERE date='2022-09-23'"
+        sql = "DELETE FROM Day WHERE date='2022-09-26'"
         cursor.execute(sql)
         connection.commit()
-        sql = "DELETE FROM Mins WHERE time_key>'2022-09-22'"
+        sql = "DELETE FROM Mins WHERE time_key>'2022-09-25'"
         cursor.execute(sql)
         connection.commit()
 
@@ -203,10 +203,16 @@ def test():
     gmail_create_draft(model3_result)
 
 if __name__ == '__main__':
-    test()
+    #test()
     #gmail_create_draft()
     #data_check()
-    #gmail_create_draft()
+
+    dict0 = {'1': 1, '2': 2}
+    dict0['1'] = 5
+    print(dict0)
+    dict0.clear()
+    print(dict0)
+
 
 
 
