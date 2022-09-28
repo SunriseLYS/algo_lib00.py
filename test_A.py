@@ -137,10 +137,11 @@ def data_check():
         sql = "USE %s" %(symbol_dict[i])
         cursor.execute(sql)
 
-        sql = "DELETE FROM Day WHERE date='2022-09-26'"
+        sql = "DELETE FROM Day WHERE date='2022-09-28'"
         cursor.execute(sql)
         connection.commit()
-        sql = "DELETE FROM Mins WHERE time_key>'2022-09-25'"
+        
+        sql = "DELETE FROM Mins WHERE time_key>'2022-09-27'"
         cursor.execute(sql)
         connection.commit()
 
@@ -163,11 +164,9 @@ def model3(df, P_level = None):   # P_level應是現價
     distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
     distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
 
-    an = (distribution_T['distribution'].sum() / distribution_T['turnover'].abs().sum()) * 100
+    an = (distribution_T['distribution'].sum() / distribution_T['distribution'].abs().sum()) * 100
     m3_value = round(an, 4)
-
-    time.sleep(1)
-
+    print(distribution_T)
     return m3_value
 
 def test():
@@ -200,18 +199,15 @@ def test():
     quote_ctx.close()
     print(model3_result)
     model3_result = str(model3_result).replace(',', '\n')
-    gmail_create_draft(model3_result)
 
 if __name__ == '__main__':
-    #test()
+    test()
     #gmail_create_draft()
     #data_check()
 
-    dict0 = {'1': 1, '2': 2}
-    dict0['1'] = 5
-    print(dict0)
-    dict0.clear()
-    print(dict0)
+
+
+
 
 
 

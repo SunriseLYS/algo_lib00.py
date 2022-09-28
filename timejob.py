@@ -170,10 +170,8 @@ def model3(df, P_level = None):   # P_level應是現價
     distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
     distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
 
-    an = (distribution_T['distribution'].sum() / distribution_T['turnover'].abs().sum()) * 100
+    an = (distribution_T['distribution'].sum() / distribution_T['distribution'].abs().sum()) * 100
     m3_value = round(an, 4)
-
-    time.sleep(1)
 
     return m3_value
 
@@ -187,7 +185,6 @@ def market_check_HK():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
-    model3_result = dict.fromkeys(symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -200,13 +197,16 @@ def market_check_HK():
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
         start_time = str(datetime.now())
+        model3_result = dict.fromkeys(symbol)
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
                 try:
-                    model3_result[stock_i] = exec('model3(df_{stock_i_})'.format(stock_i_=stock_i_))
+                    exec('df_{stock_i_}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_=stock_i_))
+                    exec("model3_result['{stock_i}'] = model3(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
+                    #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
                 except:
                     pass
             else:
@@ -924,9 +924,10 @@ def ddcoll_HK(quote_ctx, symbol):
                 else:
                     print('error:', data)
             df['pre_close'] = lastClose
+            df['mid'] = (df['high'] + df['low']) / 2
             df.drop(['code', 'pe_ratio', 'last_close', 'turnover_rate'], axis=1, inplace=True)
             for i, row in df.iterrows():
-                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i)
+                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i_)
                 sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
                 cursor.execute(sql, tuple(row))
                 connection.commit()
@@ -1277,8 +1278,4 @@ if __name__ == '__main__':
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
-    dtt = None
-
-    for l in symbol_dict:
-        print(symbol_dict[l])
 

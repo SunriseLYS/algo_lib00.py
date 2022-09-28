@@ -51,9 +51,10 @@ def timer():
         elif current_time == time(9, 30):
             print('HK Market Process Open ', current_time)
             timejob.market_check_HK()
+        '''
         elif current_time == time(16, 30):
             timejob.ddcoll_HK()
-            print('HK data collection done')
+            print('HK data collection done')'''
 
 
 def timer_test():
