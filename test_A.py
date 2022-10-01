@@ -137,11 +137,11 @@ def data_check():
         sql = "USE %s" %(symbol_dict[i])
         cursor.execute(sql)
 
-        sql = "DELETE FROM Day WHERE date='2022-09-28'"
+        sql = "DELETE FROM Day WHERE date='2022-09-29'"
         cursor.execute(sql)
         connection.commit()
         
-        sql = "DELETE FROM Mins WHERE time_key>'2022-09-27'"
+        sql = "DELETE FROM Mins WHERE time_key>'2022-09-28'"
         cursor.execute(sql)
         connection.commit()
 
@@ -166,7 +166,6 @@ def model3(df, P_level = None):   # P_level應是現價
 
     an = (distribution_T['distribution'].sum() / distribution_T['distribution'].abs().sum()) * 100
     m3_value = round(an, 4)
-    print(distribution_T)
     return m3_value
 
 def test():
@@ -177,6 +176,7 @@ def test():
     symbol = symbol[:3]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
     model3_result = dict.fromkeys(symbol)
+    m3_df = pd.DataFrame(index=symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -187,22 +187,25 @@ def test():
     else:
         print('subscription failed', err_message)
 
-    for stock_i, stock_i_ in symbol_dict.items():
-        ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
-        if ret == RET_OK:
-            exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
-            exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
-            exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
+    for k in range(3):
+        for stock_i, stock_i_ in symbol_dict.items():
+            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+            if ret == RET_OK:
+                exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+                exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
+                exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
+            else:
+                print('error:', data)
 
-        else:
-            print('error:', data)
-    quote_ctx.close()
+        m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=['1'])], axis=1)
     print(model3_result)
+    print(m3_df)
+    quote_ctx.close()
     model3_result = str(model3_result).replace(',', '\n')
 
 if __name__ == '__main__':
     test()
-    #gmail_create_draft()
+    #gmail_create_draft('test')
     #data_check()
 
 

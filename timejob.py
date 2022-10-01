@@ -1,10 +1,10 @@
 import talib as ta
 import Techanalysis as ts
 from time import sleep
-from datetime import timedelta
+from datetime import timedelta, time
 import pandas as pd
 from futu import *
-import smtplib, os, shutil
+import os, shutil
 import mysql.connector
 from mysql.connector import Error
 import base64
@@ -185,6 +185,7 @@ def market_check_HK():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    m3_df = pd.DataFrame(index=symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -212,24 +213,25 @@ def market_check_HK():
             else:
                 print('error:', data)
         end_time = str(datetime.now())
+
         try:
-            model3_result = str(model3_result).replace(',', '\n')
+            m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=[end_time[:10]])], axis=1)
+        except: pass
+
+        model3_result = str(model3_result).replace(',', '\n')
+        try:
             gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result)
-        except:
-            pass
+        except: pass
 
         sleep(900)
         marState = quote_ctx.get_global_state()
-
-
         if marState[1]['market_hk'] == 'REST':
-            for k in symbol_dict:
-                exec('df_{}.to_csv("Ram/" + stock_i + ".csv")'.format(symbol_dict[k]))
-            while True:  # 中午休市, 迴圈至下跌開市
-                marState = quote_ctx.get_global_state()
-                sleep(300)
-                if marState[1]['market_hk'] != 'REST':
+            while True:
+                current_time = datetime.now().time().replace(second=0, microsecond=0)
+                if current_time == time(13, 0):
+                    sleep(30)
                     break
+
     else:
         print('HK Market Closed')
         for stock_i, stock_i_ in symbol_dict.items():
@@ -884,7 +886,6 @@ def ddcoll_HK(quote_ctx, symbol):
             ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=str(lastDay), end=current_time,
                                                                       max_count=100)
             if ret == RET_OK:
-
                 data = data.drop(['code', 'last_close'], axis=1)
                 data = data.rename(columns={'time_key': 'date'})
                 data['mid'] = (data['high'] + data['low']) / 2
