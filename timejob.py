@@ -16,6 +16,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import mimetypes
 
 pd.set_option('display.max_columns', 10)  # pandas setting 顥示列數上限
 pd.set_option('display.width', 1000)  # pandas setting 顯示列的闊度
@@ -78,7 +79,7 @@ def create_database(connection, query):
         print(f"Error: '{err}'")
 
 
-def gmail_create_draft(emailAdd, sub, content):
+def gmail_create_draft(emailAdd, sub, content, att=None):
     '''address, subject, content'''
     creds, _ = google.auth.default()
 
@@ -106,9 +107,15 @@ def gmail_create_draft(emailAdd, sub, content):
         message['From'] = 'origin.sunrise@gmail.com'
         message['Subject'] = sub
 
+        if att is not None:
+            type_subtype, _ = mimetypes.guess_type(att)
+            maintype, subtype = type_subtype.split('/')
+            with open(att, 'rb') as fp:
+                attachment_data = fp.read()
+            message.add_attachment(attachment_data, maintype, subtype, filename=att)
+
         # encoded message
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()) \
-            .decode()
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
         create_message = {
             'raw': encoded_message
