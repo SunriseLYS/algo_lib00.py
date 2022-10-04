@@ -233,10 +233,10 @@ def market_check_HK():
         sleep(900)
         marState = quote_ctx.get_global_state()
         if marState[1]['market_hk'] == 'REST':
+            sleep(3600)
             while True:
-                current_time = datetime.now().time().replace(second=0, microsecond=0)
-                if current_time == time(13, 0):
-                    sleep(30)
+                if marState[1]['market_hk'] != 'REST':
+                    sleep(10)
                     break
 
     else:
