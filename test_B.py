@@ -17,18 +17,6 @@ pd.set_option('display.max_rows', 5000)  # pandas setting 顯示行的闊度
 pd.options.mode.chained_assignment = None
 
 
-def executed_deal(quote_ctx):
-    ret_sub, err_message = quote_ctx.subscribe(['HK.00700'], [SubType.TICKER], subscribe_push=False)
-    if ret_sub == RET_OK:
-        ret, data = quote_ctx.get_rt_ticker('HK.00700', 2)
-        if ret == RET_OK:
-            print(data)
-        else:
-            print('error:', data)
-    else:
-        print('subscription failed', err_message)
-
-
 def matching(quote_ctx):
     ret_sub = quote_ctx.subscribe(['HK.00700'], [SubType.ORDER_BOOK], subscribe_push=False)[0]
     if ret_sub == RET_OK:  # 订阅成功
@@ -53,14 +41,23 @@ class Database:
         except Error as err:
             print(f"Error: '{err}'")
 
-    def data_request(self, stock_i_, table):
+    def table_list(self, stock_i_):
         self.cursor.execute("USE %s" % (stock_i_))
-        self.cursor.execute("SHOW columns FROM %s" % (table))
-        column_list= [i[0] for i in self.cursor.fetchall()]
+        self.cursor.execute("SHOW TABLEs")
+        table_list = [i[0] for i in self.cursor.fetchall()]
+        return table_list
 
-        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
-        df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
-        return df
+    def data_request(self, stock_i_, table):
+        try:
+            self.cursor.execute("USE %s" % (stock_i_))
+            self.cursor.execute("SHOW columns FROM %s" % (table))
+            column_list = [i[0] for i in self.cursor.fetchall()]
+
+            self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
+            df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
+            return df
+        except:
+            print('Dose not exist')
 
     def creat_database(self, DB_name):
         self.cursor.execute("CREATE DATABASE %s" % (DB_name))
@@ -69,6 +66,41 @@ class Database:
         self.cursor.execute("USE %s" % (DB_name))
         self.cursor.execute(sql)
 
+def model3_2_4(df, P_level = None):   # P_level應是現價
+    print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+
+    distribution_B = df[df.ticker_direction == 'BUY']
+    distribution_S = df[df.ticker_direction == 'SELL']
+
+    distribution_Buy_T = distribution_B.groupby('price')['turnover'].sum()
+    distribution_Sell_T = distribution_S.groupby('price')['turnover'].sum()
+
+    if P_level is None:
+        import statistics
+        list_P = df.drop_duplicates(subset=['price'], keep='first')['price']
+        P_level = statistics.median(list_P)
+        del statistics
+    elif P_level == 'last':
+        P_level = df['price'][len(df) - 1]   # 現價
+
+    distribution_Buy_T = pd.DataFrame(distribution_Buy_T)
+    distribution_Buy_T['index'] = distribution_Buy_T.index.map(lambda x: x - P_level)
+    distribution_Buy_T['distribution'] = distribution_Buy_T['turnover'] * distribution_Buy_T['index']
+
+    distribution_Sell_T = pd.DataFrame(distribution_Sell_T)
+    distribution_Sell_T['index'] = distribution_Sell_T.index.map(lambda x: x - P_level)
+    distribution_Sell_T['distribution'] = distribution_Sell_T['turnover'] * distribution_Sell_T['index']
+
+    quadrant0 = distribution_Buy_T[distribution_Buy_T.index > P_level]['distribution'].sum()
+    quadrant1 = distribution_Sell_T[distribution_Sell_T.index > P_level]['distribution'].sum()
+    quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum()
+    quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum()
+
+    print(round(quadrant0, 4))
+    print(round(quadrant1, 4))
+    print(round(quadrant2, 4))
+    print(round(quadrant3, 4))
 
 
 if __name__ == "__main__":
@@ -76,9 +108,12 @@ if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()'''
     DB = Database('103.68.62.116', 'root', '630A78e77?')
-    df = DB.data_request('HK_00005', '2022_09_01')
 
-    df.to_csv('HK_00005_2022_09_01.csv')
+    df = DB.data_request('HK_00005', '2022_09_01')
+    df_re = model3_2_4(df)
+    print(df_re)
+
+    #df.to_csv('HK_00005_2022_09_14.csv')
 
 
 

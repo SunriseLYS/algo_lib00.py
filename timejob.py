@@ -38,14 +38,23 @@ class Database:
         except Error as err:
             print(f"Error: '{err}'")
 
-    def data_request(self, stock_i_, table):
+    def table_list(self, stock_i_):
         self.cursor.execute("USE %s" % (stock_i_))
-        self.cursor.execute("SHOW columns FROM %s" % (table))
-        column_list= [i[0] for i in self.cursor.fetchall()]
+        self.cursor.execute("SHOW TABLEs")
+        table_list = [i[0] for i in self.cursor.fetchall()]
+        return table_list
 
-        self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
-        df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
-        return df
+    def data_request(self, stock_i_, table):
+        try:
+            self.cursor.execute("USE %s" % (stock_i_))
+            self.cursor.execute("SHOW columns FROM %s" % (table))
+            column_list = [i[0] for i in self.cursor.fetchall()]
+
+            self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
+            df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
+            return df
+        except:
+            print('Dose not exist')
 
     def creat_database(self, DB_name):
         self.cursor.execute("CREATE DATABASE %s" % (DB_name))
@@ -53,6 +62,7 @@ class Database:
     def creat_table(self, DB_name, sql):
         self.cursor.execute("USE %s" % (DB_name))
         self.cursor.execute(sql)
+
 
 
 def create_server_connection(host_name, user_name, user_password):
@@ -231,13 +241,15 @@ def market_check_HK():
         except: pass
 
         sleep(900)
+
         marState = quote_ctx.get_global_state()
         if marState[1]['market_hk'] == 'REST':
             sleep(3600)
             while True:
+                marState = quote_ctx.get_global_state()
                 if marState[1]['market_hk'] != 'REST':
-                    sleep(10)
                     break
+                sleep(10)
 
     else:
         print('HK Market Closed')

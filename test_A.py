@@ -72,7 +72,6 @@ def gmail_create_draft(con):
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     # If there are no (valid) credentials available, let the user log in.
-    '''
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -82,7 +81,7 @@ def gmail_create_draft(con):
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.json', 'w') as token:
-            token.write(creds.to_json())'''
+            token.write(creds.to_json())
 
     try:
         service = build('gmail', 'v1', credentials=creds)
@@ -94,16 +93,6 @@ def gmail_create_draft(con):
         message['From'] = 'origin.sunrise@gmail.com'
         message['Subject'] = 'Automated draft'
 
-        attachment = 'watchlist.csv'
-
-        # guessing the MIME type
-        type_subtype, _ = mimetypes.guess_type(attachment)
-        maintype, subtype = type_subtype.split('/', 1)
-        with open(attachment, 'rb') as fp:
-            attachment_data = fp.read()
-
-        message.add_attachment(attachment_data, maintype, subtype, filename=attachment)
-
         # encoded message
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
@@ -112,7 +101,8 @@ def gmail_create_draft(con):
         }
 
         # pylint: disable=E1101
-        send_message = service.users().messages().send(userId="me", body=create_message).execute()
+        send_message = (service.users().messages().send
+                        (userId="me", body=create_message).execute())
         print(F'Message Id: {send_message["id"]}')
 
     except HttpError as error:
