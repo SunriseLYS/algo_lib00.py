@@ -29,7 +29,7 @@ def matching(quote_ctx):
         print('subscription failed')
 
 
-class Database:
+class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有超過1000筆交易便有遺漏的機會
     def __init__(self, host_name, user_name, user_password):
         self.connection = None
         try:
@@ -97,21 +97,26 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum()
     quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum()
 
-    print(round(quadrant0, 4))
-    print(round(quadrant1, 4))
-    print(round(quadrant2, 4))
-    print(round(quadrant3, 4))
+    print(f'Q0: {round(quadrant0, 4)}')
+    print(f'Q1: {round(quadrant1, 4)}')
+    print(f'Q2: {round(quadrant2, 4)}')
+    print(f'Q3: {round(quadrant3, 4)}')
 
 
 if __name__ == "__main__":
     '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()'''
+    T_List = ['2022_08_31', '2022_09_01', '2022_09_02', '2022_09_05', '2022_09_06', '2022_09_07', '2022_09_08', '2022_09_13', '2022_09_14', '2022_09_15', '2022_09_16', '2022_09_19', '2022_09_20', '2022_09_21', '2022_09_22', '2022_09_23', '2022_09_26', '2022_09_27', '2022_09_28', '2022_09_29', '2022_10_14', '2022_10_17', '2022_10_18', '2022_10_19']
     DB = Database('103.68.62.116', 'root', '630A78e77?')
 
-    df = DB.data_request('HK_00005', '2022_09_01')
-    df_re = model3_2_4(df)
-    print(df_re)
+    for i in T_List:
+        print(i)
+        df = DB.data_request('HK_00005', i)
+        print(len(df))
+        df_re = model3_2_4(df)
+
+    #print(DB.table_list('HK_00005'))
 
     #df.to_csv('HK_00005_2022_09_14.csv')
 

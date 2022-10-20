@@ -240,7 +240,7 @@ def market_check_HK():
             gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result)
         except: pass
 
-        sleep(900)
+        sleep(600)
 
         marState = quote_ctx.get_global_state()
         if marState[1]['market_hk'] == 'REST':
