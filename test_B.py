@@ -59,11 +59,9 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
             if instruct is None:
                 return df
             else:
-                print(df)
                 self.cursor.execute("ORDER BY code")
                 column_list = [i[0] for i in self.cursor.fetchall()]
                 df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
-                print(df)
 
         except:
             print('Dose not exist')
@@ -79,12 +77,7 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
 def model3_2_4(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
-
-    distribution_B = df[df.ticker_direction == 'BUY']
-    distribution_S = df[df.ticker_direction == 'SELL']
-
-    distribution_Buy_T = distribution_B.groupby('price')['turnover'].sum()
-    distribution_Sell_T = distribution_S.groupby('price')['turnover'].sum()
+    df.reset_index(inplace=True, drop=True)
 
     if P_level is None:
         import statistics
@@ -94,6 +87,45 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     elif P_level == 'last':
         P_level = df['price'][len(df) - 1]   # 現價
 
+    print(P_level)
+
+    i = 0
+    dict_u, dict_d = {}, {}
+    while i < len(df) - 1:   # 需要優化
+        if df['price'][i] >= P_level:
+            first_i_u: int = i
+            while df['price'][i] >= P_level and i < len(df) - 1:
+                i += 1
+            else:
+                last_i_u: int = i
+                dict_u[first_i_u] = last_i_u
+        else:
+            first_i_d: int = i
+            while df['price'][i] < P_level and i < len(df) - 1:
+                i += 1
+            else:
+                last_i_d: int = i
+                dict_d[first_i_d] = last_i_d
+
+    upper_time = df['time'][0]
+    for j, jj in dict_u.items():
+        upper_time += df['time'][jj] - df['time'][j]
+    upper_time -= df['time'][0]
+
+    lower_time = df['time'][0]
+    for k, kk in dict_d.items():
+        lower_time += df['time'][kk] - df['time'][k]
+    lower_time -= df['time'][0]
+    # 得出高(低)於P_Level時，平均每秒的成交
+
+    print(upper_time.seconds, lower_time.seconds)
+
+    distribution_B = df[df.ticker_direction == 'BUY']
+    distribution_S = df[df.ticker_direction == 'SELL']
+
+    distribution_Buy_T = distribution_B.groupby('price')['turnover'].sum()
+    distribution_Sell_T = distribution_S.groupby('price')['turnover'].sum()
+
     distribution_Buy_T = pd.DataFrame(distribution_Buy_T)
     distribution_Buy_T['index'] = distribution_Buy_T.index.map(lambda x: x - P_level)
     distribution_Buy_T['distribution'] = distribution_Buy_T['turnover'] * distribution_Buy_T['index']
@@ -102,19 +134,20 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     distribution_Sell_T['index'] = distribution_Sell_T.index.map(lambda x: x - P_level)
     distribution_Sell_T['distribution'] = distribution_Sell_T['turnover'] * distribution_Sell_T['index']
 
-    quadrant0 = distribution_Buy_T[distribution_Buy_T.index > P_level]['distribution'].sum()
-    quadrant1 = distribution_Sell_T[distribution_Sell_T.index > P_level]['distribution'].sum()
-    quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum()
-    quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum()
+    quadrant0 = distribution_Buy_T[distribution_Buy_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
+    quadrant1 = distribution_Sell_T[distribution_Sell_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
+    quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
+    quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
 
     TQ = quadrant0 + quadrant1 + abs(quadrant2) + abs(quadrant3)
     '''
     print(f'Q0: {round(quadrant0, 4)}, {round(quadrant0/TQ * 100, 2)}')
     print(f'Q1: {round(quadrant1, 4)}, {round(quadrant1/TQ * 100, 2)}')
     print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
-    print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')'''
-
-    return quadrant0/1000, quadrant1/1000, quadrant2/1000, quadrant3/1000
+    print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
+    '''
+    Q_result = {'Q0': quadrant0/1000, 'Q1': quadrant1/1000, 'Q2': quadrant2/1000, 'Q3': quadrant3/1000}
+    return Q_result
 
 if __name__ == "__main__":
 
@@ -123,17 +156,21 @@ if __name__ == "__main__":
     symbol = symbol[:1]
 
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
-    T_List = ['2022_08_31', '2022_09_01', '2022_09_02', '2022_09_05', '2022_09_06', '2022_09_07', '2022_09_08', '2022_09_13', '2022_09_14', '2022_09_15', '2022_09_16', '2022_09_19', '2022_09_20', '2022_09_21', '2022_09_22', '2022_09_23', '2022_09_26', '2022_09_27', '2022_09_28', '2022_09_29', '2022_10_14', '2022_10_17', '2022_10_18', '2022_10_19']
     DB = Database('103.68.62.116', 'root', '630A78e77?')
+    T_List = DB.table_list('HK_00005')
+    T_List.remove('Day')
+    T_List.remove('Mins')
+    T_List = T_List[20:]
 
     df_re = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'})
 
-    for i in T_List[12:]:
-        print(i)
+    for i in T_List[:10]:
+        #print(i)
         df = DB.data_request('HK_00005', i)
         df_re.loc[i] = model3_2_4(df)
 
-    #print(df_re)
+    df_re = df_re[['Q0', 'Q1', 'Q2', 'Q3']]
+    print(df_re)   # 注意有較大比率出現
     #print(DB.table_list('HK_00005'))
 
     #df.to_csv('HK_00005_2022_09_14.csv')
