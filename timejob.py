@@ -192,6 +192,80 @@ def model3(df, P_level = None):   # P_level應是現價
 
     return m3_value
 
+def model3_2_4(df, P_level = None):   # P_level應是現價
+    #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    if P_level is None:
+        import statistics
+        list_P = df.drop_duplicates(subset=['price'], keep='first')['price']
+        P_level = statistics.median(list_P)
+        del statistics
+    elif P_level == 'last':
+        P_level = df['price'][len(df) - 1]   # 現價
+
+    print(P_level)
+
+    i = 0
+    dict_u, dict_d = {}, {}
+    while i < len(df) - 1:   # 需要優化
+        if df['price'][i] >= P_level:
+            first_i_u: int = i
+            while df['price'][i] >= P_level and i < len(df) - 1:
+                i += 1
+            else:
+                last_i_u: int = i
+                dict_u[first_i_u] = last_i_u
+        else:
+            first_i_d: int = i
+            while df['price'][i] < P_level and i < len(df) - 1:
+                i += 1
+            else:
+                last_i_d: int = i
+                dict_d[first_i_d] = last_i_d
+
+    upper_time = df['time'][0]
+    for j, jj in dict_u.items():
+        upper_time += df['time'][jj] - df['time'][j]
+    upper_time -= df['time'][0]
+
+    lower_time = df['time'][0]
+    for k, kk in dict_d.items():
+        lower_time += df['time'][kk] - df['time'][k]
+    lower_time -= df['time'][0]
+    # 得出高(低)於P_Level時，平均每秒的成交
+
+    print(upper_time.seconds, lower_time.seconds)
+
+    distribution_B = df[df.ticker_direction == 'BUY']
+    distribution_S = df[df.ticker_direction == 'SELL']
+
+    distribution_Buy_T = distribution_B.groupby('price')['turnover'].sum()
+    distribution_Sell_T = distribution_S.groupby('price')['turnover'].sum()
+
+    distribution_Buy_T = pd.DataFrame(distribution_Buy_T)
+    distribution_Buy_T['index'] = distribution_Buy_T.index.map(lambda x: x - P_level)
+    distribution_Buy_T['distribution'] = distribution_Buy_T['turnover'] * distribution_Buy_T['index']
+
+    distribution_Sell_T = pd.DataFrame(distribution_Sell_T)
+    distribution_Sell_T['index'] = distribution_Sell_T.index.map(lambda x: x - P_level)
+    distribution_Sell_T['distribution'] = distribution_Sell_T['turnover'] * distribution_Sell_T['index']
+
+    quadrant0 = distribution_Buy_T[distribution_Buy_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
+    quadrant1 = distribution_Sell_T[distribution_Sell_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
+    quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
+    quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
+
+    TQ = quadrant0 + quadrant1 + abs(quadrant2) + abs(quadrant3)
+    '''
+    print(f'Q0: {round(quadrant0, 4)}, {round(quadrant0/TQ * 100, 2)}')
+    print(f'Q1: {round(quadrant1, 4)}, {round(quadrant1/TQ * 100, 2)}')
+    print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
+    print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
+    '''
+    Q_result = {'Q0': quadrant0/1000, 'Q1': quadrant1/1000, 'Q2': quadrant2/1000, 'Q3': quadrant3/1000}
+    return Q_result
 
 def market_check_HK():
     sleep(10)   # 避免太快，伺服器還未更新
@@ -215,7 +289,7 @@ def market_check_HK():
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
         start_time = str(datetime.now())
-        model3_result = dict.fromkeys(symbol)
+        model3_result = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'}, index={symbol})
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
@@ -223,19 +297,19 @@ def market_check_HK():
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
                 try:
                     exec('df_{stock_i_}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_=stock_i_))
-                    exec("model3_result['{stock_i}'] = model3(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
+                    exec("model3_result['{stock_i}'].loc[stock_i] = model3_2_4(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
                     #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
                 except:
                     pass
             else:
                 print('error:', data)
         end_time = str(datetime.now())
-
+        '''
         try:
             m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=[end_time[:10]])], axis=1)
-        except: pass
+        except: pass'''
 
-        model3_result = str(model3_result).replace(',', '\n')
+        #model3_result = str(model3_result).replace(',', '\n')
         try:
             gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result)
         except: pass

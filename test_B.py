@@ -150,7 +150,6 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     return Q_result
 
 if __name__ == "__main__":
-
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
     symbol = symbol[:1]
@@ -164,9 +163,9 @@ if __name__ == "__main__":
 
     df_re = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'})
 
-    for i in T_List[:10]:
+    for i in T_List[len(T_List) - 10:]:
         #print(i)
-        df = DB.data_request('HK_00005', i)
+        df = DB.data_request('HK_09988', i)
         df_re.loc[i] = model3_2_4(df)
 
     df_re = df_re[['Q0', 'Q1', 'Q2', 'Q3']]
