@@ -197,6 +197,10 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
+    if isinstance(df['time'][0], datetime):
+        pass
+    else: df['time'] = pd.to_datetime(df['time'])
+
     if P_level is None:
         import statistics
         list_P = df.drop_duplicates(subset=['price'], keep='first')['price']
@@ -204,8 +208,6 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
         del statistics
     elif P_level == 'last':
         P_level = df['price'][len(df) - 1]   # 現價
-
-    print(P_level)
 
     i = 0
     dict_u, dict_d = {}, {}
@@ -235,8 +237,6 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
         lower_time += df['time'][kk] - df['time'][k]
     lower_time -= df['time'][0]
     # 得出高(低)於P_Level時，平均每秒的成交
-
-    print(upper_time.seconds, lower_time.seconds)
 
     distribution_B = df[df.ticker_direction == 'BUY']
     distribution_S = df[df.ticker_direction == 'SELL']
@@ -289,7 +289,7 @@ def market_check_HK():
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
         start_time = str(datetime.now())
-        model3_result = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'}, index={symbol})
+        model3_result = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'}, index=symbol)
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
@@ -297,13 +297,14 @@ def market_check_HK():
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
                 try:
                     exec('df_{stock_i_}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_=stock_i_))
-                    exec("model3_result['{stock_i}'].loc[stock_i] = model3_2_4(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
+                    exec("model3_result.loc[stock_i] = model3_2_4(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
                     #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
                 except:
                     pass
             else:
                 print('error:', data)
         end_time = str(datetime.now())
+        model3_result = model3_result[['Q0', 'Q1', 'Q2', 'Q3']]
         '''
         try:
             m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=[end_time[:10]])], axis=1)

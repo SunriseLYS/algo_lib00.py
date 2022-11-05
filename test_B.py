@@ -79,6 +79,10 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
+    if isinstance(df['time'][0], datetime):
+        pass
+    else: df['time'] = pd.to_datetime(df['time'])
+
     if P_level is None:
         import statistics
         list_P = df.drop_duplicates(subset=['price'], keep='first')['price']
@@ -87,7 +91,7 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     elif P_level == 'last':
         P_level = df['price'][len(df) - 1]   # 現價
 
-    print(P_level)
+    #print(P_level)
 
     i = 0
     dict_u, dict_d = {}, {}
@@ -118,7 +122,7 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     lower_time -= df['time'][0]
     # 得出高(低)於P_Level時，平均每秒的成交
 
-    print(upper_time.seconds, lower_time.seconds)
+    #print(upper_time.seconds, lower_time.seconds)
 
     distribution_B = df[df.ticker_direction == 'BUY']
     distribution_S = df[df.ticker_direction == 'SELL']
@@ -147,6 +151,7 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
     '''
     Q_result = {'Q0': quadrant0/1000, 'Q1': quadrant1/1000, 'Q2': quadrant2/1000, 'Q3': quadrant3/1000}
+
     return Q_result
 
 if __name__ == "__main__":
@@ -171,8 +176,9 @@ if __name__ == "__main__":
     df_re = df_re[['Q0', 'Q1', 'Q2', 'Q3']]
     print(df_re)   # 注意有較大比率出現
     #print(DB.table_list('HK_00005'))
-
     #df.to_csv('HK_00005_2022_09_14.csv')
+
+
 
 
 

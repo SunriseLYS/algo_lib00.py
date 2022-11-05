@@ -206,7 +206,7 @@ def test():
 
 if __name__ == '__main__':
     #test()
-    gmail_create_draft('test')
+    gmail_create_draft('F5')
     #data_check()
 
 
