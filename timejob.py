@@ -296,8 +296,9 @@ def market_check_HK():
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
                 try:
-                    exec('df_{stock_i_}.to_csv("Ram/" + stock_i + ".csv")'.format(stock_i_=stock_i_))
-                    exec("model3_result.loc[stock_i] = model3_2_4(df_{stock_i_})".format(stock_i=stock_i, stock_i_=stock_i_))
+                    exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
+                    df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
+                    model3_result.loc[stock_i] = model3_2_4(df_M3)
                     #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
                 except:
                     pass
