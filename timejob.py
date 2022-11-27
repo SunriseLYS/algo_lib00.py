@@ -264,7 +264,8 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
     print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
     '''
-    Q_result = {'Q0': quadrant0/1000, 'Q1': quadrant1/1000, 'Q2': quadrant2/1000, 'Q3': quadrant3/1000}
+    Q_result = {'Q0': round(quadrant0/1000, 2), 'Q1': round(quadrant1/1000, 2), 'Q2': round(quadrant2/1000, 2),
+                'Q3': round(quadrant3/1000, 2)}
     return Q_result
 
 def market_check_HK():

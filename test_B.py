@@ -150,31 +150,41 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
     print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
     '''
-    Q_result = {'Q0': quadrant0/1000, 'Q1': quadrant1/1000, 'Q2': quadrant2/1000, 'Q3': quadrant3/1000}
+    Q_result = {'Q0': round(quadrant0/1000, 2), 'Q1': round(quadrant1/1000, 2), 'Q2': round(quadrant2/1000, 2),
+                'Q3': round(quadrant3/1000, 2)}
 
     return Q_result
 
 if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:1]
-
+    #symbol = symbol[:1]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
+
     DB = Database('103.68.62.116', 'root', '630A78e77?')
-    T_List = DB.table_list('HK_00005')
+
+    for stock_i in symbol_dict:
+        T_List = DB.table_list(symbol_dict[stock_i])
+        T_List.remove('Day')
+        T_List.remove('Mins')
+        df = DB.data_request(symbol_dict[stock_i], '2022_11_03')
+        print(symbol_dict[stock_i])
+        print(model3_2_4(df))
+
+
+    '''
+    stock = 'HK_00005'
+    T_List = DB.table_list(stock)
     T_List.remove('Day')
     T_List.remove('Mins')
     T_List = T_List[20:]
-
-    df_re = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'})
-
-    for i in T_List[len(T_List) - 10:]:
-        #print(i)
-        df = DB.data_request('HK_09988', i)
+    
+    for i in T_List[len(T_List) - 20:]:
+        df = DB.data_request(stock, i)
         df_re.loc[i] = model3_2_4(df)
 
     df_re = df_re[['Q0', 'Q1', 'Q2', 'Q3']]
-    print(df_re)   # 注意有較大比率出現
+    print(df_re)   # 注意有較大比率出現'''
     #print(DB.table_list('HK_00005'))
     #df.to_csv('HK_00005_2022_09_14.csv')
 
