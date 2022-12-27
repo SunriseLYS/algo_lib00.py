@@ -166,7 +166,6 @@ def model3_reflection(df):
 
 
 if __name__ == "__main__":
-    '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
     #symbol = symbol[:1]
@@ -180,7 +179,7 @@ if __name__ == "__main__":
         T_List.remove('Mins')
         df = DB.data_request(symbol_dict[stock_i], '2022_11_03')
         print(symbol_dict[stock_i])
-        print(model3_2_4(df))'''
+        print(model3_2_4(df))
 
 
     '''
@@ -199,35 +198,7 @@ if __name__ == "__main__":
     #print(DB.table_list('HK_00005'))
     #df.to_csv('HK_00005_2022_09_14.csv')
 
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.header import Header
 
-    mail_host = "smtp.abchk.com"
-    mail_user = "sam.liu@nvcapitals.com"
-    mail_pass = "630A78e77"
-
-    sender = 'sam.liu@nvcapitals.com'
-    receivers = ['sam.liu@nvcapitals.com']
-
-    message = MIMEText("his is the mail system at host smtp45.abchk.net. \nI'm sorry to have to inform you that your message could not "
-                       "be delivered to one or more recipients. \nIt's attached below. For further assistance, "
-                       "please send mail to postmaster. \n\nIf you do so, please include this problem report. \n\nYou can"
-                       "delete your own text from the attached returned message.The mail system", 'plain', 'utf-8')
-
-    message['From'] = Header("MAILER-DAEMON@smtp45.abchk.net (Mail Delivery System)", 'utf-8')
-    message['To'] = Header("sam.liu@nvcapitals.com", 'utf-8')
-
-    subject = 'Undelivered Mail Returned to Sender'
-    message['Subject'] = Header(subject, 'utf-8')
-    message['Date'] = '2022-12-8 18:37:32'
-
-    smtpObj = smtplib.SMTP()
-    smtpObj.connect(mail_host, 465)
-    smtpObj.login(mail_user, mail_pass)
-    print('login')
-    smtpObj.sendmail(sender, receivers, message.as_string())
-    print('sent')
 
 
 

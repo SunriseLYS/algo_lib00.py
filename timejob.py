@@ -89,7 +89,7 @@ def create_database(connection, query):
         print(f"Error: '{err}'")
 
 
-def gmail_create_draft(emailAdd, sub, content, att=None):
+def gmail_create_draft(emailAdd, sub, content, sec_content=None, att=None):
     '''address, subject, content'''
     creds, _ = google.auth.default()
 
@@ -111,7 +111,7 @@ def gmail_create_draft(emailAdd, sub, content, att=None):
         service = build('gmail', 'v1', credentials=creds)
         message = EmailMessage()
 
-        message.set_content(str(content))
+        message.set_content(str(content) + '\n\n' + str(sec_content))
 
         message['To'] = emailAdd
         message['From'] = 'origin.sunrise@gmail.com'
@@ -264,8 +264,8 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
     print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
     print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
     '''
-    Q_result = {'Q0': round(quadrant0/1000, 2), 'Q1': round(quadrant1/1000, 2), 'Q2': round(quadrant2/1000, 2),
-                'Q3': round(quadrant3/1000, 2)}
+    Q_result = {'Positive': round(quadrant0 + quadrant1, 2), 'Negative': round(quadrant2 + quadrant3, 2)}
+
     return Q_result
 
 def market_check_HK():
@@ -277,7 +277,6 @@ def market_check_HK():
     symbol = watchlist['Futu symbol'].tolist()
     symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
-    m3_df = pd.DataFrame(index=symbol)
 
     for j in symbol_dict:
         exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
@@ -290,7 +289,7 @@ def market_check_HK():
 
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
         start_time = str(datetime.now())
-        model3_result = pd.DataFrame(columns={'Q0', 'Q1', 'Q2', 'Q3'}, index=symbol)
+        model3_result = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index=symbol)
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
@@ -306,7 +305,16 @@ def market_check_HK():
             else:
                 print('error:', data)
         end_time = str(datetime.now())
-        model3_result = model3_result[['Q0', 'Q1', 'Q2', 'Q3']]
+
+        model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
+        model3_result['Ratio'] = model3_result['Ratio'].astype('float')
+        model3_result['Ratio'] = model3_result['Ratio'].round(4)
+
+        maket_trend = model3_result['Positive'].sum() / model3_result['Negative'].sum()
+        model3_result['Adjusted'] = model3_result['Ratio'] * maket_trend
+
+        model3_result = model3_result[['Positive', 'Negative', 'Ratio', 'Adjusted']]
+
         '''
         try:
             m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=[end_time[:10]])], axis=1)
@@ -314,7 +322,7 @@ def market_check_HK():
 
         #model3_result = str(model3_result).replace(',', '\n')
         try:
-            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result)
+            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend)
         except: pass
 
         sleep(600)
@@ -1372,7 +1380,59 @@ def exclud_pre_after_market():
 
 if __name__ == '__main__':
     #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    symbol = symbol[:5]
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}  # 轉變成Dictionary
+
+    for j in symbol_dict:
+        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
+
+    print(symbol)
+
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)  # 訂閱
+    if ret_sub == RET_OK:
+        pass
+    else:
+        print('subscription failed', err_message)
+
+    start_time = str(datetime.now())
+    model3_result = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index=symbol)
+
+    for stock_i, stock_i_ in symbol_dict.items():
+        ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+        if ret == RET_OK:
+            exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+            exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(
+                stock_i_=stock_i_))
+            try:
+                exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
+                df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
+                model3_result.loc[stock_i] = model3_2_4(df_M3)
+                # 加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
+            except:
+                pass
+        else:
+            print('error:', data)
+    end_time = str(datetime.now())
+
+    model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
+    model3_result['Ratio'] = model3_result['Ratio'].astype('float')
+    model3_result['Ratio'] = model3_result['Ratio'].round(4)
+
+    maket_trend = model3_result['Positive'].sum() / model3_result['Negative'].sum()
+    model3_result['Adjusted'] = model3_result['Ratio'] * maket_trend
+
+    model3_result = model3_result[['Positive', 'Negative', 'Ratio', 'Adjusted']]
+    print(model3_result)
+
+    try:
+        gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend)
+    except:
+        pass
+
+    quote_ctx.close()
+
 
