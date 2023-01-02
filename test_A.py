@@ -57,7 +57,6 @@ def main():
         # TODO(developer) - Handle errors from gmail API.
         print(f'An error occurred: {error}')
 
-
 def gmail_create_draft(con):
     """Create and insert a draft email.
        Print the returned draft's message and id.
@@ -149,7 +148,6 @@ def data_check():
         df = pd.read_sql("SELECT * FROM Day", connection)
         print(df.tail(5))
 
-from futu import *
 
 def model3(df, P_level = None):   # P_level應是現價
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
@@ -169,45 +167,20 @@ def model3(df, P_level = None):   # P_level應是現價
     m3_value = round(an, 4)
     return m3_value
 
-def test():
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:3]
-    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
-    model3_result = dict.fromkeys(symbol)
-    m3_df = pd.DataFrame(index=symbol)
-
-    for j in symbol_dict:
-        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
-
-    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)   #訂閱
-    if ret_sub == RET_OK:
-        pass
-    else:
-        print('subscription failed', err_message)
-
-    for k in range(3):
-        for stock_i, stock_i_ in symbol_dict.items():
-            ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
-            if ret == RET_OK:
-                exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
-                exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
-                exec('model3_result["{values}"] = model3(df_{stock_i_})'.format(values=stock_i, stock_i_=stock_i_))
-            else:
-                print('error:', data)
-
-        m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=['1'])], axis=1)
-    print(model3_result)
-    print(m3_df)
-    quote_ctx.close()
-    model3_result = str(model3_result).replace(',', '\n')
 
 if __name__ == '__main__':
-    #test()
-    gmail_create_draft('F5')
-    #data_check()
+    #gmail_create_draft('F5')
+    from futu import *
+
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+
+    ret, data = quote_ctx.get_rehab("HK.00005")
+    if ret == RET_OK:
+        print(data)
+    else:
+        print('error:', data)
+    quote_ctx.close()
+
 
 
 

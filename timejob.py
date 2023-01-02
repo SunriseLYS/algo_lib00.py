@@ -50,7 +50,13 @@ class Database:
             self.cursor.execute("SHOW columns FROM %s" % (table))
             column_list = [i[0] for i in self.cursor.fetchall()]
 
-            self.cursor.execute("SELECT * FROM %s" % (table))  # Day, Mins, YYYY_MM_DD
+            order_col = 'time'
+            if table == 'Day':
+                order_col = 'date'
+            elif table == 'Mins':
+                order_col = 'time_key'
+
+            self.cursor.execute("SELECT * FROM %s ORDER BY %s" % (table, order_col))   # Day, Mins, YYYY_MM_DD
             df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
             return df
         except:
@@ -308,7 +314,7 @@ def market_check_HK():
 
         model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
         model3_result['Ratio'] = model3_result['Ratio'].astype('float')
-        model3_result['Ratio'] = model3_result['Ratio'].round(4)
+        model3_result['Ratio'] = model3_result['Ratio'].round(2)
 
         maket_trend = model3_result['Positive'].sum() / model3_result['Negative'].sum()
         model3_result['Adjusted'] = model3_result['Ratio'] * maket_trend
@@ -322,7 +328,7 @@ def market_check_HK():
 
         #model3_result = str(model3_result).replace(',', '\n')
         try:
-            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend)
+            gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend, 'Model3_r.csv')
         except: pass
 
         sleep(600)
@@ -1378,61 +1384,53 @@ def exclud_pre_after_market():
         print(stock_i, ' Done')
 
 
-if __name__ == '__main__':
-    #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+def gmail_create_draft(con):
+    creds, _ = google.auth.default()
 
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:5]
-    symbol_dict = {i: i.replace('.', '_') for i in symbol}  # 轉變成Dictionary
-
-    for j in symbol_dict:
-        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
-
-    print(symbol)
-
-    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)  # 訂閱
-    if ret_sub == RET_OK:
-        pass
-    else:
-        print('subscription failed', err_message)
-
-    start_time = str(datetime.now())
-    model3_result = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index=symbol)
-
-    for stock_i, stock_i_ in symbol_dict.items():
-        ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
-        if ret == RET_OK:
-            exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
-            exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(
-                stock_i_=stock_i_))
-            try:
-                exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
-                df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
-                model3_result.loc[stock_i] = model3_2_4(df_M3)
-                # 加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
-            except:
-                pass
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
         else:
-            print('error:', data)
-    end_time = str(datetime.now())
-
-    model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
-    model3_result['Ratio'] = model3_result['Ratio'].astype('float')
-    model3_result['Ratio'] = model3_result['Ratio'].round(4)
-
-    maket_trend = model3_result['Positive'].sum() / model3_result['Negative'].sum()
-    model3_result['Adjusted'] = model3_result['Ratio'] * maket_trend
-
-    model3_result = model3_result[['Positive', 'Negative', 'Ratio', 'Adjusted']]
-    print(model3_result)
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
 
     try:
-        gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend)
-    except:
-        pass
+        service = build('gmail', 'v1', credentials=creds)
+        message = EmailMessage()
 
-    quote_ctx.close()
+        message.set_content(str(con))
+
+        message['To'] = 'alphax.lys@gmail.com'
+        message['From'] = 'origin.sunrise@gmail.com'
+        message['Subject'] = 'Automated draft'
+
+        # encoded message
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        create_message = {
+            'raw': encoded_message
+        }
+
+        # pylint: disable=E1101
+        send_message = (service.users().messages().send
+                        (userId="me", body=create_message).execute())
+        print(F'Message Id: {send_message["id"]}')
+
+    except HttpError as error:
+        print(F'An error occurred: {error}')
+        send_message = None
+    return send_message
+
+
+if __name__ == '__main__':
+    #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
+    gmail_create_draft('F5')
 
 

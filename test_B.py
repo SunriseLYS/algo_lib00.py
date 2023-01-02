@@ -53,8 +53,16 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
             self.cursor.execute("SHOW columns FROM %s" % (table))
             column_list = [i[0] for i in self.cursor.fetchall()]
 
-            self.cursor.execute("SELECT * FROM %s ORDER BY time" % (table))
+            order_col = 'time'
+            if table == 'Day':
+                order_col = 'date'
+            elif table == 'Mins':
+                order_col = 'time_key'
+
+            self.cursor.execute("SELECT * FROM %s ORDER BY %s" % (table, order_col))
             df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
+
+            print('check 1')
 
             if instruct is None:
                 return df
@@ -168,18 +176,18 @@ def model3_reflection(df):
 if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    #symbol = symbol[:1]
+    symbol = symbol[:1]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
 
     DB = Database('103.68.62.116', 'root', '630A78e77?')
 
     for stock_i in symbol_dict:
         T_List = DB.table_list(symbol_dict[stock_i])
-        T_List.remove('Day')
-        T_List.remove('Mins')
-        df = DB.data_request(symbol_dict[stock_i], '2022_11_03')
+        #T_List.remove('Day')
+        #T_List.remove('Mins')
         print(symbol_dict[stock_i])
-        print(model3_2_4(df))
+        df = DB.data_request(symbol_dict[stock_i], 'Day')
+        print(df)
 
 
     '''
@@ -197,6 +205,8 @@ if __name__ == "__main__":
     print(df_re)   # 注意有較大比率出現'''
     #print(DB.table_list('HK_00005'))
     #df.to_csv('HK_00005_2022_09_14.csv')
+
+
 
 
 
