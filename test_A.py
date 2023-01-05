@@ -130,23 +130,29 @@ def data_check():
 
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:3]
+    symbol = symbol[1:47]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
 
     for i in symbol_dict:
-        sql = "USE %s" %(symbol_dict[i])
-        cursor.execute(sql)
+        try:
+            sql = "USE %s" %(symbol_dict[i])
+            cursor.execute(sql)
+            '''
+            sql = "DELETE FROM Day WHERE date='2023-01-05'"
+            cursor.execute(sql)
+            connection.commit()
+            
+            sql = "DELETE FROM Mins WHERE time_key>'2023-01-04'"
+            cursor.execute(sql)
+            connection.commit()'''
 
-        sql = "DELETE FROM Day WHERE date='2022-09-29'"
-        cursor.execute(sql)
-        connection.commit()
-        
-        sql = "DELETE FROM Mins WHERE time_key>'2022-09-28'"
-        cursor.execute(sql)
-        connection.commit()
+            sql = "DROP TABLE 2023_01_05 IF EXISTS"
+            cursor.execute(sql)
+        except: pass
+        #connection.commit()
 
-        df = pd.read_sql("SELECT * FROM Day", connection)
-        print(df.tail(5))
+        #df = pd.read_sql("SELECT * FROM Day", connection)
+        #print(df.tail(5))
 
 
 def model3(df, P_level = None):   # P_level應是現價
@@ -170,6 +176,7 @@ def model3(df, P_level = None):   # P_level應是現價
 
 if __name__ == '__main__':
     #gmail_create_draft('F5')
+    '''
     from futu import *
 
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
@@ -179,7 +186,9 @@ if __name__ == '__main__':
         print(data)
     else:
         print('error:', data)
-    quote_ctx.close()
+    quote_ctx.close()'''
+
+    data_check()
 
 
 

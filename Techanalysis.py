@@ -3,7 +3,6 @@ import datetime
 import pandas as pd
 import talib as ta
 import os
-import time
 import itertools
 import mysql.connector
 from mysql.connector import Error
@@ -1869,15 +1868,16 @@ def model6():
 def model_testing(symbol):
     pass
 
-
 def model3_2_4(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
+    from futu import datetime
     if isinstance(df['time'][0], datetime):
         pass
     else: df['time'] = pd.to_datetime(df['time'])
+    del datetime
 
     if P_level is None:
         import statistics

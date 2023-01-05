@@ -62,8 +62,6 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
             self.cursor.execute("SELECT * FROM %s ORDER BY %s" % (table, order_col))
             df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
 
-            print('check 1')
-
             if instruct is None:
                 return df
             else:
@@ -82,7 +80,7 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
         self.cursor.execute(sql)
 
 
-def model3_2_4(df, P_level = None):   # P_level應是現價
+def model3_2_40(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.reset_index(inplace=True, drop=True)
@@ -183,11 +181,15 @@ if __name__ == "__main__":
 
     for stock_i in symbol_dict:
         T_List = DB.table_list(symbol_dict[stock_i])
-        #T_List.remove('Day')
-        #T_List.remove('Mins')
-        print(symbol_dict[stock_i])
-        df = DB.data_request(symbol_dict[stock_i], 'Day')
-        print(df)
+        T_List.remove('Day')
+        T_List.remove('Mins')
+        print(T_List)
+        for list_i in T_List:
+            df = DB.data_request(symbol_dict[stock_i], list_i)
+            print(np.median(df['price']))
+            print(list_i)
+            print(ts.model3_2_4(df))
+
 
 
     '''

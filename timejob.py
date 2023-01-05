@@ -312,7 +312,9 @@ def market_check_HK():
                 print('error:', data)
         end_time = str(datetime.now())
 
-        model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
+        #model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
+        model3_result['Ratio'] = model3_result.apply(lambda x: x['Positive'] / x['Negative'].abs() if x['Positive'] > x['Negative'].abs() else
+                                                     x['Negative'] / x['Positive'])
         model3_result['Ratio'] = model3_result['Ratio'].astype('float')
         model3_result['Ratio'] = model3_result['Ratio'].round(2)
 
