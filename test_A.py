@@ -175,7 +175,7 @@ def model3(df, P_level = None):   # P_level應是現價
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
+    gmail_create_draft('F5')
     '''
     from futu import *
 
@@ -188,7 +188,6 @@ if __name__ == '__main__':
         print('error:', data)
     quote_ctx.close()'''
 
-    data_check()
 
 
 

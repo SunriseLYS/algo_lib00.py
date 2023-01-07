@@ -281,7 +281,7 @@ def market_check_HK():
 
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = suspension_check(quote_ctx, symbol)
+    #symbol = suspension_check(quote_ctx, symbol)
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
 
     for j in symbol_dict:
@@ -313,8 +313,11 @@ def market_check_HK():
         end_time = str(datetime.now())
 
         #model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
-        model3_result['Ratio'] = model3_result.apply(lambda x: x['Positive'] / x['Negative'].abs() if x['Positive'] > x['Negative'].abs() else
-                                                     x['Negative'] / x['Positive'])
+        model3_result['Ratio'] = model3_result.apply(lambda x:
+                                                     x['Positive'] / x['Negative'] * -1
+                                                     if x['Positive'] > x['Negative'] * -1
+                                                     else x['Negative'] / x['Positive'],
+                                                     axis=1)
         model3_result['Ratio'] = model3_result['Ratio'].astype('float')
         model3_result['Ratio'] = model3_result['Ratio'].round(2)
 
@@ -364,7 +367,7 @@ def market_check_HK():
 
     sleep(1200)
 
-    ddcoll_HK(quote_ctx, symbol)
+    #ddcoll_HK(quote_ctx, symbol)
 
     quote_ctx.close()
 
@@ -1434,5 +1437,4 @@ def gmail_create_draft(con):
 if __name__ == '__main__':
     #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
     gmail_create_draft('F5')
-
 

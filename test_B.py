@@ -183,14 +183,36 @@ if __name__ == "__main__":
         T_List = DB.table_list(symbol_dict[stock_i])
         T_List.remove('Day')
         T_List.remove('Mins')
-        print(T_List)
+
+
+        dfResult = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index= [j.replace('_', '-') for j in T_List])
         for list_i in T_List:
             df = DB.data_request(symbol_dict[stock_i], list_i)
-            print(np.median(df['price']))
-            print(list_i)
-            print(ts.model3_2_4(df))
+            list_i = list_i.replace('_', '-')
+            dfResult.loc[list_i] = ts.model3_2_4(df)
 
+        dfDay = DB.data_request(symbol_dict[stock_i], 'Day')
+        dfDay = dfDay.set_index('date', drop=True)
 
+        dfResult['Ratio'] = dfResult.apply(lambda x:
+                                                     x['Positive'] / x['Negative'] * -1
+                                                     if x['Positive'] > x['Negative'] * -1
+                                                     else x['Negative'] / x['Positive'],
+                                                     axis=1)
+        dfResult['Ratio'] = dfResult['Ratio'].astype('float')
+        dfResult['Ratio'] = dfResult['Ratio'].round(2)
+
+        maket_trend = dfResult['Positive'].sum() / dfResult['Negative'].sum()
+        dfResult['Adjusted'] = dfResult['Ratio'] * maket_trend
+
+        dfResult = dfResult[['Positive', 'Negative', 'Ratio', 'Adjusted']]
+
+        dfResult.index = pd.to_datetime(dfResult.index)
+        dfDay.index = pd.to_datetime(dfDay.index)
+
+        dfDay = pd.concat([dfDay, dfResult], axis=1, sort=False)
+
+        dfDay.to_csv('%s.csv' %(stock_i))
 
     '''
     stock = 'HK_00005'
