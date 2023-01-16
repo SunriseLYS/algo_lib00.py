@@ -178,7 +178,13 @@ if __name__ == "__main__":
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
 
     DB = Database('103.68.62.116', 'root', '630A78e77?')
+    dfDay = DB.data_request('HK_01548', 'Mins')
+    print(dfDay.tail(1))
+    dfDay = DB.data_request('HK_01798', 'Mins')
+    print(dfDay.tail(1))
 
+
+    '''
     for stock_i in symbol_dict:
         T_List = DB.table_list(symbol_dict[stock_i])
         T_List.remove('Day')
@@ -212,7 +218,7 @@ if __name__ == "__main__":
 
         dfDay = pd.concat([dfDay, dfResult], axis=1, sort=False)
 
-        dfDay.to_csv('%s.csv' %(stock_i))
+        dfDay.to_csv('%s.csv' %(stock_i))'''
 
     '''
     stock = 'HK_00005'

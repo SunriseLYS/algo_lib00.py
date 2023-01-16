@@ -970,23 +970,16 @@ def ddcoll_HK(quote_ctx, symbol):
                     df = pd.concat([df, data])
                 else:
                     print('error:', data)
+            df.drop(['code', 'pe_ratio', 'last_close', 'turnover_rate'], axis=1, inplace=True)
+            df['mid'] = (df['high'] + df['low']) / 2
             df['pre_close'] = 0
 
-            num = len(df) // 10
-            for j in range(1, 11):
-                df0 = df[num * (j - 1):num * j]
-                print(j)
-                for i, row in df0.iterrows():
-                    sqlDatabase = "INSERT INTO %s.Mins" % (stock_i)
-                    sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-                    cursor.execute(sql, tuple(row))
-                    connection.commit()
-            df0 = df[num * j:]
-            for i, row in df0.iterrows():
-                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i)
+            for i, row in df.iterrows():
+                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i_)
                 sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
                 cursor.execute(sql, tuple(row))
                 connection.commit()
+
 
             print('Created a new record for ', stock_i)
             time.sleep(0.5)
@@ -1039,6 +1032,8 @@ def ddcoll_HK(quote_ctx, symbol):
                     df = pd.concat([df, data])
                 else:
                     print('error:', data)
+
+
             df['pre_close'] = lastClose
             df['mid'] = (df['high'] + df['low']) / 2
             df.drop(['code', 'pe_ratio', 'last_close', 'turnover_rate'], axis=1, inplace=True)
