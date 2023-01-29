@@ -130,7 +130,7 @@ def data_check():
 
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:46]
+    symbol = symbol[46:]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
 
     for i in symbol_dict:
@@ -146,10 +146,10 @@ def data_check():
             sql = "DELETE FROM Mins WHERE time_key>'2023-01-15'"
             cursor.execute(sql)
             connection.commit()   
-            '''
+
             sql = "DROP TABLE IF EXISTS 2023_01_16"
             cursor.execute(sql)
-            connection.commit()'''
+            connection.commit()
         except: pass
 
         print(i)
@@ -177,8 +177,8 @@ def model3(df, P_level = None):   # P_level應是現價
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
-    data_check()
+    gmail_create_draft('F5')
+    #data_check()
 
 
 

@@ -83,89 +83,77 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
 def model3_2_40(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.drop(['code', 'sequence'], axis=1, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
-    if isinstance(df['time'][0], datetime):   #datetime 類型
-        pass
-    else: df['time'] = pd.to_datetime(df['time'])
+    df_B = df.drop(df[df['ticker_direction'] == 'SELL'].index)
+    df_B.set_index('price', inplace=True)
+    df_B.index = df_B.index.astype(str, copy = False)
+    df_B.drop(['time'], axis=1, inplace=True)
 
-    if P_level is None:
-        import statistics
-        list_P = df.drop_duplicates(subset=['price'], keep='first')['price']
-        P_level = statistics.median(list_P)
-        del statistics
-    elif P_level == 'last':
-        P_level = df['price'][len(df) - 1]   # 現價
+    df_S = df.drop(df[df['ticker_direction'] == 'BUY'].index)
+    df_S.set_index('price', inplace=True)
+    df_S.index = df_S.index.astype(str, copy=False)
+    df_S.drop(['time'], axis=1, inplace=True)
 
-    #print(P_level)
+    df_index = sorted(set(df['price'].to_list()))
+    df_index = [str(x) for x in df_index]
+    df_re = pd.DataFrame(columns={'Buy', 'Sell', 'Ratio'}, index=df_index)
 
-    i = 0
-    dict_u, dict_d = {}, {}
-    while i < len(df) - 1:   # 需要優化
-        if df['price'][i] >= P_level:
-            first_i_u: int = i
-            while df['price'][i] >= P_level and i < len(df) - 1:
-                i += 1
-            else:
-                last_i_u: int = i
-                dict_u[first_i_u] = last_i_u
-        else:
-            first_i_d: int = i
-            while df['price'][i] < P_level and i < len(df) - 1:
-                i += 1
-            else:
-                last_i_d: int = i
-                dict_d[first_i_d] = last_i_d
+    for i in df_index:
+        if i in df_B.index:
+            df_re['Buy'][i] = df_B.loc[i]['turnover'].sum()   # 相同索引總和
+        if i in df_S.index:
+            df_re['Sell'][i] = df_S.loc[i]['turnover'].sum()
 
-    upper_time = df['time'][0]
-    for j, jj in dict_u.items():
-        upper_time += df['time'][jj] - df['time'][j]
-    upper_time -= df['time'][0]
-
-    lower_time = df['time'][0]
-    for k, kk in dict_d.items():
-        lower_time += df['time'][kk] - df['time'][k]
-    lower_time -= df['time'][0]
-    # 得出高(低)於P_Level時，平均每秒的成交
-
-    #print(upper_time.seconds, lower_time.seconds)
-
-    distribution_B = df[df.ticker_direction == 'BUY']
-    distribution_S = df[df.ticker_direction == 'SELL']
-
-    distribution_Buy_T = distribution_B.groupby('price')['turnover'].sum()
-    distribution_Sell_T = distribution_S.groupby('price')['turnover'].sum()
-
-    distribution_Buy_T = pd.DataFrame(distribution_Buy_T)
-    distribution_Buy_T['index'] = distribution_Buy_T.index.map(lambda x: x - P_level)
-    distribution_Buy_T['distribution'] = distribution_Buy_T['turnover'] * distribution_Buy_T['index']
-
-    distribution_Sell_T = pd.DataFrame(distribution_Sell_T)
-    distribution_Sell_T['index'] = distribution_Sell_T.index.map(lambda x: x - P_level)
-    distribution_Sell_T['distribution'] = distribution_Sell_T['turnover'] * distribution_Sell_T['index']
-
-    quadrant0 = distribution_Buy_T[distribution_Buy_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
-    quadrant1 = distribution_Sell_T[distribution_Sell_T.index > P_level]['distribution'].sum() / int(upper_time.seconds)
-    quadrant2 = distribution_Buy_T[distribution_Buy_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
-    quadrant3 = distribution_Sell_T[distribution_Sell_T.index < P_level]['distribution'].sum() / int(lower_time.seconds)
-
-    TQ = quadrant0 + quadrant1 + abs(quadrant2) + abs(quadrant3)
     '''
-    print(f'Q0: {round(quadrant0, 4)}, {round(quadrant0/TQ * 100, 2)}')
-    print(f'Q1: {round(quadrant1, 4)}, {round(quadrant1/TQ * 100, 2)}')
-    print(f'Q2: {round(quadrant2, 4)}, {round(quadrant2/TQ * 100, 2)}')
-    print(f'Q3: {round(quadrant3, 4)}, {round(quadrant3/TQ * 100, 2)}')
+    df_re['Ratio'] = df_re.apply(lambda x: x['Buy'] / x['Sell'] if x['Buy'] > x['Sell'] else x['Sell'] / x['Buy'] * -1,
+                                 axis=1)
     '''
-    Q_result = {'Q0': round(quadrant0/1000, 2), 'Q1': round(quadrant1/1000, 2), 'Q2': round(quadrant2/1000, 2),
-                'Q3': round(quadrant3/1000, 2)}
+    # 空值轉變成0, 再比較底部購買力和頂部沽空
+    df_re.fillna(0, inplace=True)
 
-    return Q_result
+    df_re['Sum'] = df_re['Buy'] + df_re['Sell']
+    df_re['Power'] = df_re['Buy'] - df_re['Sell']
+
+    bottomBuy = df_re.loc[df_re.index[0]]
+    support = bottomBuy['Buy'] - bottomBuy['Sell']
+    topSell = df_re.loc[df_re.index[len(df_re.index) - 1]]
+    pressure = topSell['Buy'] - topSell['Sell']
+
+    df_re = df_re[['Buy', 'Sell', 'Sum', 'Power']]
+
+    df_re2 = pd.concat([df_re.loc[[df_re.index[0]]],
+                        df_re.sort_values(by=['Sum'], ascending=False)[:3],
+                        df_re.loc[[df_re.index[len(df_re.index) - 1]]]])
+    print(df_re2)
+
+    print(df_re2['Sum'].idxmax(), df_re2['Power'].sum())
+    print(df_re.index[0])
+    print(df_re.index[len(df_re.index) - 1])
+    return df_re
+
+
+def model9(df):
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    df_B = df.drop(df[df['ticker_direction'] == 'BUY'].index)
+
+    df_S = df.drop(df[df['ticker_direction'] == 'SELL'].index)
+    df['Roll'] = df['turnover'].rolling(10).sum()
+
+    df_T = df[['time', 'turnover']]
+
+    print(df)
+
 
 
 def model3_reflection(df):
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.reset_index(inplace=True, drop=True)
-    if isinstance(df['time'][0], datetime):   #datetime 類型
+    if isinstance(df['time'][0], datetime):   #檢查datetime 類型
         pass
     else: df['time'] = pd.to_datetime(df['time'])
 
@@ -178,61 +166,20 @@ if __name__ == "__main__":
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
 
     DB = Database('103.68.62.116', 'root', '630A78e77?')
-    dfDay = DB.data_request('HK_01548', 'Mins')
-    print(dfDay.tail(1))
-    dfDay = DB.data_request('HK_01798', 'Mins')
-    print(dfDay.tail(1))
 
-
-    '''
     for stock_i in symbol_dict:
         T_List = DB.table_list(symbol_dict[stock_i])
         T_List.remove('Day')
         T_List.remove('Mins')
 
+        T_List = T_List[:5]
 
         dfResult = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index= [j.replace('_', '-') for j in T_List])
         for list_i in T_List:
+            print(list_i)
             df = DB.data_request(symbol_dict[stock_i], list_i)
-            list_i = list_i.replace('_', '-')
-            dfResult.loc[list_i] = ts.model3_2_4(df)
-
-        dfDay = DB.data_request(symbol_dict[stock_i], 'Day')
-        dfDay = dfDay.set_index('date', drop=True)
-
-        dfResult['Ratio'] = dfResult.apply(lambda x:
-                                                     x['Positive'] / x['Negative'] * -1
-                                                     if x['Positive'] > x['Negative'] * -1
-                                                     else x['Negative'] / x['Positive'],
-                                                     axis=1)
-        dfResult['Ratio'] = dfResult['Ratio'].astype('float')
-        dfResult['Ratio'] = dfResult['Ratio'].round(2)
-
-        maket_trend = dfResult['Positive'].sum() / dfResult['Negative'].sum()
-        dfResult['Adjusted'] = dfResult['Ratio'] * maket_trend
-
-        dfResult = dfResult[['Positive', 'Negative', 'Ratio', 'Adjusted']]
-
-        dfResult.index = pd.to_datetime(dfResult.index)
-        dfDay.index = pd.to_datetime(dfDay.index)
-
-        dfDay = pd.concat([dfDay, dfResult], axis=1, sort=False)
-
-        dfDay.to_csv('%s.csv' %(stock_i))'''
-
-    '''
-    stock = 'HK_00005'
-    T_List = DB.table_list(stock)
-    T_List.remove('Day')
-    T_List.remove('Mins')
-    T_List = T_List[20:]
-    
-    for i in T_List[len(T_List) - 20:]:
-        df = DB.data_request(stock, i)
-        df_re.loc[i] = model3_2_4(df)
-
-    df_re = df_re[['Q0', 'Q1', 'Q2', 'Q3']]
-    print(df_re)   # 注意有較大比率出現'''
+            #df.to_csv('%s.csv' %(list_i))
+            df_re = model3_2_40(df)
     #print(DB.table_list('HK_00005'))
     #df.to_csv('HK_00005_2022_09_14.csv')
 
