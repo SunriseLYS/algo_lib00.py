@@ -1946,7 +1946,112 @@ def model3_2_4(df, P_level = None):   # P_level應是現價
 
     return Q_result
 
+def model6_2_4(df, P_level = None):   # P_level應是現價
+    #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.drop(['code', 'sequence'], axis=1, inplace=True)
+    df.reset_index(inplace=True, drop=True)
 
+    if isinstance(df['time'][0], datetime):
+        pass
+    else: df['time'] = pd.to_datetime(df['time'])
+
+    df_B = df.drop(df[df['ticker_direction'] == 'SELL'].index)
+    df_S = df.drop(df[df['ticker_direction'] == 'BUY'].index)
+
+    df_count_B = pd.DataFrame()
+    df_count_B['count_B'] = df_B['price'].value_counts()
+    df_count_S = pd.DataFrame()
+    df_count_S['count_S'] = df_S['price'].value_counts()
+    df_count = pd.concat([df_count_B, df_count_S], axis=1)
+    df_count.index = [str(x) for x in df_count.index]
+    df_count.fillna(0, inplace=True)
+    df_count = df_count.astype({'count_B': 'int', 'count_S': 'int'})
+
+    df_B.set_index('price', inplace=True)
+    df_B.index = df_B.index.astype(str, copy = False)
+    df_B.drop(['time'], axis=1, inplace=True)
+
+    df_S.set_index('price', inplace=True)
+    df_S.index = df_S.index.astype(str, copy=False)
+    df_S.drop(['time'], axis=1, inplace=True)
+
+    df_index = sorted(set(df['price'].to_list()))
+    df_index = [str(x) for x in df_index]
+    df_re = pd.DataFrame(columns={'Buy', 'Sell'}, index=df_index)
+
+    for i in df_index:
+        if i in df_B.index:
+            df_re['Buy'][i] = df_B.loc[i]['turnover'].sum()   # 相同索引總和
+        if i in df_S.index:
+            df_re['Sell'][i] = df_S.loc[i]['turnover'].sum()
+
+    df_re = pd.concat([df_re, df_count], axis=1)
+    df_re.fillna(0, inplace=True)
+    df_re = df_re.astype({'count_B': 'int', 'count_S': 'int'})
+
+    df_re['avg_B'] = df_re['Buy'] / df_re['count_B']
+    df_re['avg_B'] = df_re['avg_B'].round(0)
+    df_re['avg_S'] = df_re['Sell'] / df_re['count_S']
+    df_re['avg_S'] = df_re['avg_S'].round(0)
+
+    df_re = df_re[['Buy', 'count_B', 'avg_B', 'Sell', 'count_S', 'avg_S']]
+    df_re.fillna(0, inplace=True)
+
+    if P_level is None:
+        P_level = df_re.index[len(df_re.index)//2]
+    elif P_level == 'last':
+        P_level = df['price'][len(df) - 1]   # 現價
+
+    # 找出位置
+    P_level_loc: int = 0
+    for i in range(len(df_re.index)):
+        if df_re.index[i] == P_level:
+            P_level_loc = i
+
+    df_re['feature'] = [float(x) - float(P_level) for x in df_re.index]
+
+    df_re['B_power'] = df_re['Buy'] * df_re['feature']
+    df_re['S_power'] = df_re['Sell'] * df_re['feature']
+    df_re['N_power'] = df_re['B_power'] - df_re['S_power']
+
+    upper_power =df_re[P_level_loc:]['N_power'].sum()
+    lower_power = df_re[:P_level_loc]['N_power'].sum()
+    total_power = abs(upper_power) + abs(lower_power)
+    '''
+    print('lower: %s; upper: %s' %(round(lower_power / total_power, 2), round(upper_power / total_power, 2)))
+    print(round(total_power))'''
+
+    '''
+    # 空值轉變成0, 再比較底部購買力和頂部沽空
+    df_re.fillna(0, inplace=True)
+
+    df_re['Sum'] = df_re['Buy'] + df_re['Sell']
+    df_re['Power'] = df_re['Buy'] - df_re['Sell']
+
+    bottomBuy = df_re.loc[df_re.index[0]]
+    support = bottomBuy['Buy'] - bottomBuy['Sell']
+    topSell = df_re.loc[df_re.index[len(df_re.index) - 1]]
+    pressure = topSell['Buy'] - topSell['Sell']
+
+    df_re = df_re[['Buy', 'Sell', 'Sum', 'Power']]
+
+    print(df_re)
+
+    df_re2 = pd.concat([df_re.loc[[df_re.index[0]]],
+                        df_re.sort_values(by=['Sum'], ascending=False)[:3],
+                        df_re.loc[[df_re.index[len(df_re.index) - 1]]]])
+
+    moder_result = {'Price': df_re2['Sum'].idxmax(),   # 成交最高的價位
+                    'Power': df_re2['Power'].sum(),
+                    'Support': df_re.index[0],
+                    'Celling': df_re.index[len(df_re.index) - 1]}
+    return moder_result'''
+
+    result_dict = {'lower': round(lower_power / total_power, 2),
+                   'upper': round(upper_power / total_power, 2),
+                   'turnover': round(total_power, 0)}
+    return result_dict
 
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)

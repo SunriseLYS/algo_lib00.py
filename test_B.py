@@ -80,7 +80,7 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
         self.cursor.execute(sql)
 
 
-def model3_2_40(df, P_level = None):   # P_level應是現價
+def model6_2_4(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.drop(['code', 'sequence'], axis=1, inplace=True)
@@ -182,7 +182,52 @@ def model3_2_40(df, P_level = None):   # P_level應是現價
                     'Celling': df_re.index[len(df_re.index) - 1]}
     return moder_result'''
 
-    return round(lower_power / total_power, 2), round(upper_power / total_power, 2), round(total_power, 0)
+    # lower高負數, upper正數, confid >= 0.9, 沽出
+    # lower但正數, upper高正數, confid >= 0.9, 買入
+
+    result_dict = {'lower': round(lower_power / total_power, 2),
+                   'upper': round(upper_power / total_power, 2),
+                   'turnover': round(total_power, 0)}
+    return result_dict
+
+
+def model9_2_4(df):
+    #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    if isinstance(df['time'][0], datetime):
+        pass
+    else: df['time'] = pd.to_datetime(df['time'])
+
+    df['avg'] = round(df['volume'].mean(), 0) * 3
+
+    accumulate: int = 0
+    df['accumulate'] = 0
+    df['instruct'] = ' '
+    for i in range(len(df)):
+        if df['ticker_direction'][i] == 'BUY':
+            accumulate += df['volume'][i]
+            df['accumulate'][i] = accumulate
+
+            if df['volume'][i] > df['avg'][i]:
+                df['instruct'][i] = 'B'
+
+        else:
+            accumulate -= df['volume'][i]
+            df['accumulate'][i] = accumulate
+
+            if df['volume'][i] > df['avg'][i]:
+                df['instruct'][i] = 'S'
+
+
+    df['fu_p'] = df['price'].rolling(10).mean()
+
+    # 出現大手買入的 BUY 則跟隨買入, 直到出現多次 大手買入或 大手賣出
+    print(df)
+
+
 
 def model9(df):
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
@@ -222,25 +267,14 @@ if __name__ == "__main__":
         T_List.remove('Day')
         T_List.remove('Mins')
 
-        T_List = T_List[20:]
+        T_List = T_List[20:21]
 
         dfResult = pd.DataFrame(columns={'lower', 'upper', 'turnover'})
         for list_i in T_List:
             df = DB.data_request(symbol_dict[stock_i], list_i)
-            dfResult.loc[list_i] = model3_2_40(df)
+            print(model9_2_4(df))
 
-        #dfResult['dif'] = dfResult['Celling'].astype(float) - dfResult['Support'].astype(float)
-        #dfResult = dfResult[['Power', 'Price', 'Celling', 'Support', 'dif']]
 
-        dfResult['avg_turnover'] = dfResult['turnover'].rolling(5).mean()
-        dfResult['avg_price'] = dfResult['turnover'].rolling(5).mean()
-        dfResult['confid'] = dfResult['turnover'] / dfResult['avg_turnover']
-        print(dfResult)
-        # lower高負數, upper正數, confid >= 0.9, 沽出
-        # lower但正數, upper高正數, confid >= 0.9, 買入
-
-    #print(DB.table_list('HK_00005'))
-    #df.to_csv('HK_00005_2022_09_14.csv')
 
 
 

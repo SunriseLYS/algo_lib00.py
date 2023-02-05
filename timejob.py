@@ -296,7 +296,7 @@ def market_check_HK():
     ana_time: int = 1
     while marState[1]['market_hk'] == 'MORNING' or marState[1]['market_hk'] == 'AFTERNOON':
         start_time = str(datetime.now())
-        model3_result = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index=symbol)
+        model6_result = pd.DataFrame(columns={'lower', 'upper', 'turnover'}, index=symbol)
         for stock_i, stock_i_ in symbol_dict.items():
             ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
             if ret == RET_OK:
@@ -306,36 +306,27 @@ def market_check_HK():
                 if ana_time % 2 == 0:
                     exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
                     df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
-                    model3_result.loc[stock_i] = model3_2_4(df_M3)
+                    model6_result.loc[stock_i] = model3_2_4(df_M3)
                     #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
             else:
                 print('error:', data)
         end_time = str(datetime.now())
 
         if ana_time % 2 == 0:
-            #model3_result['Ratio'] = model3_result['Positive'] / model3_result['Negative']
-            model3_result['Ratio'] = model3_result.apply(lambda x:
-                                                         x['Positive'] / x['Negative'] * -1
-                                                         if x['Positive'] > x['Negative'] * -1
-                                                         else x['Negative'] / x['Positive'],
-                                                         axis=1)
-            model3_result['Ratio'] = model3_result['Ratio'].astype('float')
-            model3_result['Ratio'] = model3_result['Ratio'].round(2)
+            maket_trend = model6_result['upper'].sum() / model6_result['lower'].sum()
+            #model6_result['Adjusted'] = model6_result['Ratio'] * maket_trend
 
-            maket_trend = model3_result['Positive'].sum() / model3_result['Negative'].sum()
-            model3_result['Adjusted'] = model3_result['Ratio'] * maket_trend
-
-            model3_result = model3_result[['Positive', 'Negative', 'Ratio', 'Adjusted']]
+            model6_result = model6_result[['lower', 'upper', 'turnover', 'Adjusted']]
 
             '''
             try:
-                m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model3_result, orient="index", columns=[end_time[:10]])], axis=1)
+                m3_df = pd.concat([m3_df, pd.DataFrame.from_dict(model6_result, orient="index", columns=[end_time[:10]])], axis=1)
             except: pass'''
 
-            #model3_result = str(model3_result).replace(',', '\n')
+            #model6_result = str(model6_result).replace(',', '\n')
 
             try:
-                gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model3_result, maket_trend, 'Model3_r.csv')
+                gmail_create_draft('alphax.lys@gmail.com', str(ana_time) + ' ' + start_time + ' ' + end_time, model6_result, maket_trend, 'Model3_r.csv')
             except: pass
 
         ana_time += 1
