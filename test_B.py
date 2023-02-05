@@ -86,19 +86,33 @@ def model3_2_40(df, P_level = None):   # P_level應是現價
     df.drop(['code', 'sequence'], axis=1, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
+    if isinstance(df['time'][0], datetime):
+        pass
+    else: df['time'] = pd.to_datetime(df['time'])
+
     df_B = df.drop(df[df['ticker_direction'] == 'SELL'].index)
+    df_S = df.drop(df[df['ticker_direction'] == 'BUY'].index)
+
+    df_count_B = pd.DataFrame()
+    df_count_B['count_B'] = df_B['price'].value_counts()
+    df_count_S = pd.DataFrame()
+    df_count_S['count_S'] = df_S['price'].value_counts()
+    df_count = pd.concat([df_count_B, df_count_S], axis=1)
+    df_count.index = [str(x) for x in df_count.index]
+    df_count.fillna(0, inplace=True)
+    df_count = df_count.astype({'count_B': 'int', 'count_S': 'int'})
+
     df_B.set_index('price', inplace=True)
     df_B.index = df_B.index.astype(str, copy = False)
     df_B.drop(['time'], axis=1, inplace=True)
 
-    df_S = df.drop(df[df['ticker_direction'] == 'BUY'].index)
     df_S.set_index('price', inplace=True)
     df_S.index = df_S.index.astype(str, copy=False)
     df_S.drop(['time'], axis=1, inplace=True)
 
     df_index = sorted(set(df['price'].to_list()))
     df_index = [str(x) for x in df_index]
-    df_re = pd.DataFrame(columns={'Buy', 'Sell', 'Ratio'}, index=df_index)
+    df_re = pd.DataFrame(columns={'Buy', 'Sell'}, index=df_index)
 
     for i in df_index:
         if i in df_B.index:
@@ -106,9 +120,42 @@ def model3_2_40(df, P_level = None):   # P_level應是現價
         if i in df_S.index:
             df_re['Sell'][i] = df_S.loc[i]['turnover'].sum()
 
+    df_re = pd.concat([df_re, df_count], axis=1)
+    df_re.fillna(0, inplace=True)
+    df_re = df_re.astype({'count_B': 'int', 'count_S': 'int'})
+
+    df_re['avg_B'] = df_re['Buy'] / df_re['count_B']
+    df_re['avg_B'] = df_re['avg_B'].round(0)
+    df_re['avg_S'] = df_re['Sell'] / df_re['count_S']
+    df_re['avg_S'] = df_re['avg_S'].round(0)
+
+    df_re = df_re[['Buy', 'count_B', 'avg_B', 'Sell', 'count_S', 'avg_S']]
+    df_re.fillna(0, inplace=True)
+
+    if P_level is None:
+        P_level = df_re.index[len(df_re.index)//2]
+    elif P_level == 'last':
+        P_level = df['price'][len(df) - 1]   # 現價
+
+    # 找出位置
+    P_level_loc: int = 0
+    for i in range(len(df_re.index)):
+        if df_re.index[i] == P_level:
+            P_level_loc = i
+
+    df_re['feature'] = [float(x) - float(P_level) for x in df_re.index]
+
+    df_re['B_power'] = df_re['Buy'] * df_re['feature']
+    df_re['S_power'] = df_re['Sell'] * df_re['feature']
+    df_re['N_power'] = df_re['B_power'] - df_re['S_power']
+
+    upper_power =df_re[P_level_loc:]['N_power'].sum()
+    lower_power = df_re[:P_level_loc]['N_power'].sum()
+    total_power = abs(upper_power) + abs(lower_power)
     '''
-    df_re['Ratio'] = df_re.apply(lambda x: x['Buy'] / x['Sell'] if x['Buy'] > x['Sell'] else x['Sell'] / x['Buy'] * -1,
-                                 axis=1)
+    print('lower: %s; upper: %s' %(round(lower_power / total_power, 2), round(upper_power / total_power, 2)))
+    print(round(total_power))'''
+
     '''
     # 空值轉變成0, 再比較底部購買力和頂部沽空
     df_re.fillna(0, inplace=True)
@@ -123,16 +170,19 @@ def model3_2_40(df, P_level = None):   # P_level應是現價
 
     df_re = df_re[['Buy', 'Sell', 'Sum', 'Power']]
 
+    print(df_re)
+
     df_re2 = pd.concat([df_re.loc[[df_re.index[0]]],
                         df_re.sort_values(by=['Sum'], ascending=False)[:3],
                         df_re.loc[[df_re.index[len(df_re.index) - 1]]]])
-    print(df_re2)
 
-    print(df_re2['Sum'].idxmax(), df_re2['Power'].sum())
-    print(df_re.index[0])
-    print(df_re.index[len(df_re.index) - 1])
-    return df_re
+    moder_result = {'Price': df_re2['Sum'].idxmax(),   # 成交最高的價位
+                    'Power': df_re2['Power'].sum(),
+                    'Support': df_re.index[0],
+                    'Celling': df_re.index[len(df_re.index) - 1]}
+    return moder_result'''
 
+    return round(lower_power / total_power, 2), round(upper_power / total_power, 2), round(total_power, 0)
 
 def model9(df):
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
@@ -162,7 +212,7 @@ def model3_reflection(df):
 if __name__ == "__main__":
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[:1]
+    symbol = symbol[7:8]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
 
     DB = Database('103.68.62.116', 'root', '630A78e77?')
@@ -172,14 +222,23 @@ if __name__ == "__main__":
         T_List.remove('Day')
         T_List.remove('Mins')
 
-        T_List = T_List[:5]
+        T_List = T_List[20:]
 
-        dfResult = pd.DataFrame(columns={'Positive', 'Negative', 'Ratio', 'Adjusted'}, index= [j.replace('_', '-') for j in T_List])
+        dfResult = pd.DataFrame(columns={'lower', 'upper', 'turnover'})
         for list_i in T_List:
-            print(list_i)
             df = DB.data_request(symbol_dict[stock_i], list_i)
-            #df.to_csv('%s.csv' %(list_i))
-            df_re = model3_2_40(df)
+            dfResult.loc[list_i] = model3_2_40(df)
+
+        #dfResult['dif'] = dfResult['Celling'].astype(float) - dfResult['Support'].astype(float)
+        #dfResult = dfResult[['Power', 'Price', 'Celling', 'Support', 'dif']]
+
+        dfResult['avg_turnover'] = dfResult['turnover'].rolling(5).mean()
+        dfResult['avg_price'] = dfResult['turnover'].rolling(5).mean()
+        dfResult['confid'] = dfResult['turnover'] / dfResult['avg_turnover']
+        print(dfResult)
+        # lower高負數, upper正數, confid >= 0.9, 沽出
+        # lower但正數, upper高正數, confid >= 0.9, 買入
+
     #print(DB.table_list('HK_00005'))
     #df.to_csv('HK_00005_2022_09_14.csv')
 
