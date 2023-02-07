@@ -1952,10 +1952,6 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
     df.drop(['code', 'sequence'], axis=1, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
-    if isinstance(df['time'][0], datetime):
-        pass
-    else: df['time'] = pd.to_datetime(df['time'])
-
     df_B = df.drop(df[df['ticker_direction'] == 'SELL'].index)
     df_S = df.drop(df[df['ticker_direction'] == 'BUY'].index)
 

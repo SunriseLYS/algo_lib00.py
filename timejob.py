@@ -302,11 +302,15 @@ def market_check_HK():
             if ret == RET_OK:
                 exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
                 exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
-
+                exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
                 if ana_time % 2 == 0:
-                    exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
                     df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
-                    model6_result.loc[stock_i] = model3_2_4(df_M3)
+
+                    if isinstance(df_M3['time'][0], datetime):
+                        pass
+                    else:
+                        df_M3['time'] = pd.to_datetime(df_M3['time'])
+                    model6_result.loc[stock_i] = ts.model6_2_4(df_M3)
                     #加一個Dataframe 存放當天model 3的結果, 並以附件發出gmail
             else:
                 print('error:', data)
