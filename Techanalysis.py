@@ -1997,7 +1997,7 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
     if P_level is None:
         P_level = df_re.index[len(df_re.index)//2]
     elif P_level == 'last':
-        P_level = df['price'][len(df) - 1]   # 現價
+        P_level = str(df['price'][len(df) - 1])  # 現價
 
     # 找出位置
     P_level_loc: int = 0
