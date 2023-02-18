@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import datetime
-import sys, time, os
+import sys, os
 import pandas as pd
 import Techanalysis as ts
 from futu import *
@@ -9,7 +9,6 @@ from time import sleep
 import numpy as np
 import mysql.connector
 from mysql.connector import Error
-
 pd.set_option('display.max_columns', 150)  # pandas setting 顥示列數上限
 pd.set_option('display.width', 5000)  # pandas setting 顯示列的闊度
 # pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
@@ -262,8 +261,29 @@ def model3_reflection(df):
     else: df['time'] = pd.to_datetime(df['time'])
 
 
+class TickerTest(TickerHandlerBase):
+    def __init__(self):
+        self.ana_dict = {'US.TSLA': 12, 'US.DIS': 2000, 'US.AAPL': 20000}
+    def on_recv_rsp(self, rsp_pb):
+        ret_code, data = super(TickerTest, self).on_recv_rsp(rsp_pb)
+        if ret_code != RET_OK:
+            print("TickerTest: error, msg: %s" % data)
+            return RET_ERROR, data
+        data = self.dealScreening(data)
+        return RET_OK, data
+
+    def dealScreening(self, data):
+        data.drop('push_data_type', axis=1, inplace=True)
+
+        volume_TH = self.ana_dict['%s' %(data['code'][0])]
+
+        if data['volume'][0] > volume_TH:
+            print(data)
+
+
 
 if __name__ == "__main__":
+    '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
     symbol = symbol[7:8]
@@ -291,16 +311,14 @@ if __name__ == "__main__":
 
         #print(dfResult['volume'].mean())
         #print(dfResult['volume'].std())
+        
+    '''
 
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    Ticker_US = ['US.TSLA', 'US.DIS', 'US.AAPL']
 
-
-
-
-
-
-
-
-
-
-
-
+    handler = TickerTest()
+    quote_ctx.set_handler(handler)
+    quote_ctx.subscribe(Ticker_US, [SubType.TICKER])
+    sleep(5)
+    quote_ctx.close()
