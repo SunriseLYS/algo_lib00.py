@@ -181,8 +181,8 @@ def model3(df, P_level = None):   # P_level應是現價
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
-    data_check()
+    gmail_create_draft('F5')
+    #data_check()
 
 
 

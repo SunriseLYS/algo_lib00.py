@@ -197,28 +197,29 @@ def model9_2_4(df):
     df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
     df.reset_index(inplace=True, drop=True)
 
-    if isinstance(df['time'][0], datetime):
-        pass
-    else: df['time'] = pd.to_datetime(df['time'])
+    df['time1'] = df['time'].shift(1)
+    df['time_dif'] = df['time'] - df['time1']
+    df.drop('time1', axis=1, inplace=True)
+    df['time_dif'] = df['time_dif'] / pd.Timedelta(seconds=1)
 
-    df['avg'] = round(df['volume'].mean(), 0) * 3
 
     accumulate: int = 0
     df['accumulate'] = 0
     df['instruct'] = ' '
-    for i in range(len(df)):
+    for i in range(3, len(df)):
         if df['ticker_direction'][i] == 'BUY':
+            df['volume'][i:i].sum()
             accumulate += df['volume'][i]
             df['accumulate'][i] = accumulate
 
-            if df['volume'][i] > df['avg'][i]:
+            if accumulate > 180000:
                 df['instruct'][i] = 'B'
 
         else:
             accumulate -= df['volume'][i]
             df['accumulate'][i] = accumulate
 
-            if df['volume'][i] > df['avg'][i]:
+            if df['volume'][i] > 180000:
                 df['instruct'][i] = 'S'
 
 
@@ -226,6 +227,14 @@ def model9_2_4(df):
 
     # 出現大手買入的 BUY 則跟隨買入, 直到出現多次 大手買入或 大手賣出
     print(df)
+
+
+
+def model12_2_4(df):
+    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+    df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
 
 
 
@@ -269,13 +278,19 @@ if __name__ == "__main__":
 
         T_List = T_List[20:21]
 
-        dfResult = pd.DataFrame(columns={'lower', 'upper', 'turnover'})
+        dfResult = pd.DataFrame()
         for list_i in T_List:
             df = DB.data_request(symbol_dict[stock_i], list_i)
+            if isinstance(df['time'][0], datetime):
+                pass
+            else:
+                df['time'] = pd.to_datetime(df['time'])
+
+            dfResult = pd.concat([dfResult, df])
             print(model9_2_4(df))
 
-
-
+        #print(dfResult['volume'].mean())
+        #print(dfResult['volume'].std())
 
 
 
