@@ -1068,49 +1068,9 @@ def ddcoll_HK(quote_ctx, symbol):
 def ddcoll_US():
     watchlistUS = pd.read_csv('watchlistUS.csv')
     symbol = watchlistUS['Futu symbol'].tolist()
-
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    thisDay = datetime.now().date() - timedelta(days=1)
-    thisDay = str(thisDay)
-    for stock_i in symbol:
-        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000,
-                                                                  ktype=KLType.K_DAY)
-        if ret == RET_OK:
-            Fpath = 'Database/' + stock_i
-            pathName = 'Database/' + stock_i + '/' + stock_i + '.csv'
-            if not os.path.isdir(Fpath):
-                os.mkdir('Database/' + stock_i)
-            if not os.path.exists(pathName):
-                data.to_csv(pathName)
-            else:
-                existDf = pd.read_csv(pathName, index_col=0)
-                data = data.drop(['code'], axis=1)
-                data = data.rename(colums={'time_key': 'date'})
-                existDf = pd.concat([existDf, data])
-                existDf.to_csv(pathName)
-                print('Added a new record for ', stock_i)
-        else:
-            print('error:', data)
-        time.sleep(0.5)
+    ddcoll_HK(quote_ctx, symbol)
 
-    for stock_i in symbol:
-        ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start=thisDay, end=thisDay, max_count=1000,
-                                                                  extended_time=True, ktype=KLType.K_1M)
-        if ret == RET_OK:
-            pathName = 'Database/' + stock_i + '/' + stock_i + '_min.csv'
-            if not os.path.exists(pathName):
-                data.to_csv(pathName)
-            else:
-                existDf = pd.read_csv(pathName, index_col=0)
-                data = data.drop(['code'], axis=1)
-                existDf = pd.concat([existDf, data])
-                existDf.to_csv(pathName)
-                print('Added a new record for ', stock_i)
-        else:
-            print('error:', data)
-        print('All pages are finished!', stock_i)
-        time.sleep(0.5)
-    quote_ctx.close()
 
 
 def packaging_loc_to_cloud():

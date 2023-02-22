@@ -263,11 +263,11 @@ def model3_reflection(df):
 
 class TickerTest(TickerHandlerBase):
     def __init__(self):
-        self.ana_dict = {'US.TSLA': 12, 'US.DIS': 2000, 'US.AAPL': 20000}
+        self.ana_dict = {'US.TSLA': 3600, 'US.DIS': 6000, 'US.AAPL': 6000}
     def on_recv_rsp(self, rsp_pb):
-        ret_code, data = super(TickerTest, self).on_recv_rsp(rsp_pb)
+        ret_code, data = super(TickerTest,self).on_recv_rsp(rsp_pb)
         if ret_code != RET_OK:
-            print("TickerTest: error, msg: %s" % data)
+            print("StockQuoteTest: error, msg: %s" % data)
             return RET_ERROR, data
         data = self.dealScreening(data)
         return RET_OK, data
@@ -277,8 +277,11 @@ class TickerTest(TickerHandlerBase):
 
         volume_TH = self.ana_dict['%s' %(data['code'][0])]
 
-        if data['volume'][0] > volume_TH:
-            print(data)
+        data = data[data['volume'] > volume_TH]
+        data.drop(data[data['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
+
+        if len(data) > 0:
+            print(data[data['volume'] > volume_TH])
 
 
 
@@ -320,5 +323,6 @@ if __name__ == "__main__":
     handler = TickerTest()
     quote_ctx.set_handler(handler)
     quote_ctx.subscribe(Ticker_US, [SubType.TICKER])
-    sleep(5)
+    sleep(720)
+    print('End')
     quote_ctx.close()

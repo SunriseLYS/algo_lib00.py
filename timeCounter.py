@@ -51,6 +51,10 @@ def timer():
         elif current_time == time(9, 30):
             print('HK Market Process Open ', current_time)
             timejob.market_check_HK()
+        elif current_time == time(8, 0) and 1 < ToWeekday < 6:
+            print('US collect', current_time)
+            timejob.ddcoll_US()
+
         '''
         elif current_time == time(16, 30):
             timejob.ddcoll_HK()
