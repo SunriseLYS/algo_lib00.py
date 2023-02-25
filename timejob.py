@@ -376,7 +376,7 @@ def market_check_HK():
 
     sleep(1200)
 
-    #ddcoll_HK(quote_ctx, symbol)
+    ddcoll(quote_ctx, symbol)
 
     quote_ctx.close()
 
@@ -911,7 +911,7 @@ def emailnotice():
     Tech_Table_R.to_csv('EmailAtt/Tech_Table_R.csv')
 
 
-def ddcoll_HK(quote_ctx, symbol):
+def ddcoll(quote_ctx, symbol):
     connection = Database('103.68.62.116', 'root', '630A78e77?')
     current_time = str(datetime.now().date())
 
@@ -1054,7 +1054,7 @@ def ddcoll_US():
     watchlistUS = pd.read_csv('watchlistUS.csv')
     symbol = watchlistUS['Futu symbol'].tolist()
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    ddcoll_HK(quote_ctx, symbol)
+    ddcoll(quote_ctx, symbol)
 
 
 
@@ -1377,7 +1377,7 @@ if __name__ == '__main__':
     watchlistUS = pd.read_csv('watchlistUS.csv')
     symbol = watchlistUS['Futu symbol'].tolist()
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    ddcoll_HK(quote_ctx, symbol)
+    ddcoll(quote_ctx, symbol)
 
 
 
