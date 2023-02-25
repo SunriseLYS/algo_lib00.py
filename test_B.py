@@ -78,6 +78,18 @@ class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有�
         self.cursor.execute("USE %s" % (DB_name))
         self.cursor.execute(sql)
 
+    def show_db(self, table):
+        sql = "SHOW DATABASES LIKE %s" % ('"' + table + '"')
+        self.cursor.execute(sql)
+        showHall = self.cursor.fetchall()
+        return showHall
+
+    def data_input(self, DB_name, table, values_num: int, row: tuple):
+        sqlTo = "INSERT INTO %s.%s" % (DB_name, table)
+        value = "VALUES" + "(" + "%s" * values_num + ")"
+        sql = sqlTo + value
+        self.cursor.execute(sql, tuple(row))
+        self.connection.commit()
 
 def model6_2_4(df, P_level = None):   # P_level應是現價
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
@@ -263,16 +275,20 @@ def model3_reflection(df):
 
 class TickerTest(TickerHandlerBase):
     def __init__(self):
-        self.ana_dict = {'US.TSLA': 3600, 'US.DIS': 6000, 'US.AAPL': 6000}
+        self.ana_dict = {'US.TSLA': 3600, 'US.DIS': 6000, 'US.AAPL': 3000}
+        self.T_book = pd.DataFrame()
     def on_recv_rsp(self, rsp_pb):
         ret_code, data = super(TickerTest,self).on_recv_rsp(rsp_pb)
         if ret_code != RET_OK:
             print("StockQuoteTest: error, msg: %s" % data)
             return RET_ERROR, data
-        data = self.dealScreening(data)
+        self.T_book = pd.concat([self.T_book, data])
+        self.dealScreening(data)
+        self.T_book.to_csv('US_Test.csv')
         return RET_OK, data
 
     def dealScreening(self, data):
+        data.to_csv('US_Test.csv')
         data.drop('push_data_type', axis=1, inplace=True)
 
         volume_TH = self.ana_dict['%s' %(data['code'][0])]
@@ -282,6 +298,8 @@ class TickerTest(TickerHandlerBase):
 
         if len(data) > 0:
             print(data[data['volume'] > volume_TH])
+
+
 
 
 
@@ -323,6 +341,6 @@ if __name__ == "__main__":
     handler = TickerTest()
     quote_ctx.set_handler(handler)
     quote_ctx.subscribe(Ticker_US, [SubType.TICKER])
-    sleep(720)
+    sleep(1800)
     print('End')
     quote_ctx.close()

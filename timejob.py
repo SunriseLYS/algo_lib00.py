@@ -69,7 +69,18 @@ class Database:
         self.cursor.execute("USE %s" % (DB_name))
         self.cursor.execute(sql)
 
+    def show_db(self, table):
+        sql = "SHOW DATABASES LIKE %s" % ('"' + table + '"')
+        self.cursor.execute(sql)
+        showHall = self.cursor.fetchall()
+        return showHall
 
+    def data_input(self, DB_name, table, values_num: int, row: tuple):
+        sqlTo = "INSERT INTO %s.%s" % (DB_name, table)
+        value = " VALUES" + " (" + "%s," * values_num
+        sql = sqlTo + value[:-1] + ")"
+        self.cursor.execute(sql, tuple(row))
+        self.connection.commit()
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -901,28 +912,24 @@ def emailnotice():
 
 
 def ddcoll_HK(quote_ctx, symbol):
-    connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
+    connection = Database('103.68.62.116', 'root', '630A78e77?')
     current_time = str(datetime.now().date())
-    cursor = connection.cursor()
 
     for stock_i in symbol:
         stock_i_ = stock_i.replace('.', '_')
+        showHall = connection.show_db(stock_i_)
 
-        sql = "SHOW DATABASES LIKE %s" % ('"' + stock_i_ + '"')
-        cursor.execute(sql)
-        showHall = cursor.fetchall()
-
-        if showHall == []:  # 無現有記錄
-            sql = 'CREATE DATABASE %s' % (stock_i)
-            cursor.execute(sql)
+        if showHall == []:  # 檢查數據庫是否存在, []代表無現有記錄
+            connection.creat_database(stock_i_)
 
             sql = "CREATE TABLE Day(date DATE, open FLOAT, close FLOAT, high FLOAT, low FLOAT, pe_ratio FLOAT, " \
                   "turnover_rate FLOAT, volume BIGINT, turnover BIGINT, change_rate FLOAT, mid FLOAT, PRIMARY KEY (date), " \
                   "UNIQUE INDEX date(date))"
-            cursor.execute(sql)
+            connection.creat_table(stock_i_, sql)
+
             sql = "CREATE TABLE Mins(time_key TIMESTAMP, open FLOAT, close FLOAT, high FLOAT, low FLOAT, " \
                   "volume INT, turnover BIGINT, change_rate FLOAT, mid FLOAT, pre_close FLOAT)"
-            cursor.execute(sql)
+            connection.creat_table(stock_i_, sql)
 
             # 取得每日報價
             ret, data, page_req_key = quote_ctx.request_history_kline(stock_i, start='2015-01-01', end=current_time,
@@ -944,10 +951,7 @@ def ddcoll_HK(quote_ctx, symbol):
             df['mid'] = (df['high'] + df['low']) / 2
 
             for i, row in df.iterrows():
-                sqlDatabase = "INSERT INTO %s.Day" % (stock_i_)
-                sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-                cursor.execute(sql, tuple(row))
-                connection.commit()
+                connection.data_input(stock_i_, 'Day', 11, tuple(row))
 
             time.sleep(0.5)
 
@@ -973,19 +977,12 @@ def ddcoll_HK(quote_ctx, symbol):
             df['pre_close'] = 0
 
             for i, row in df.iterrows():
-                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i_)
-                sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-                cursor.execute(sql, tuple(row))
-                connection.commit()
-
+                connection.data_input(stock_i_, 'Mins', 10, tuple(row))
 
             print('Created a new record for ', stock_i)
             time.sleep(0.5)
         else:  # 如果有舊紀錄則和舊紀錄合併
-            sql = "USE %s" % (stock_i_)
-            cursor.execute(sql)
-
-            df = pd.read_sql("SELECT * FROM Day", connection)
+            df = connection.data_request(stock_i_, 'Day')
 
             lastDay = df['date'][len(df) - 1]
             lastDay += timedelta(days=1)
@@ -997,19 +994,14 @@ def ddcoll_HK(quote_ctx, symbol):
                 data['mid'] = (data['high'] + data['low']) / 2
 
                 for i, row in data.iterrows():
-                    sqlDatabase = "INSERT INTO %s.Day" % (stock_i_)
-                    sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-                    cursor.execute(sql, tuple(row))
-                    connection.commit()
+                    connection.data_input(stock_i_, 'Day', 11, tuple(row))
 
                 print('Added a new record for ', stock_i)
                 time.sleep(0.5)
 
             # 取得每分鐘報價-加入到舊記錄
-            sql = "USE %s" % (stock_i_)
-            cursor.execute(sql)
 
-            df = pd.read_sql("SELECT * FROM Mins", connection)
+            df = connection.data_request(stock_i_, 'Mins')
             lastDay = df['time_key'][len(df) - 1]
             lastClose = df['close'][len(df) - 1]
             lastDay += timedelta(days=1)
@@ -1036,29 +1028,22 @@ def ddcoll_HK(quote_ctx, symbol):
             df['mid'] = (df['high'] + df['low']) / 2
             df.drop(['code', 'pe_ratio', 'last_close', 'turnover_rate'], axis=1, inplace=True)
             for i, row in df.iterrows():
-                sqlDatabase = "INSERT INTO %s.Mins" % (stock_i_)
-                sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-                cursor.execute(sql, tuple(row))
-                connection.commit()
+                connection.data_input(stock_i_, 'Mins', 10, tuple(row))
 
             time.sleep(0.5)
 
-        df_ex = pd.read_csv('Ram/%s.csv' % (stock_i), index_col=0)
-        df_ex.drop_duplicates(subset=['sequence'], keep='first', inplace=True)
-        df_ex.to_csv('Ram/%s.csv' % (stock_i))
+        if os.path.isfile('Ram/%s.csv' % (stock_i)):
+            df_ex = pd.read_csv('Ram/%s.csv' % (stock_i), index_col=0)
+            df_ex.drop_duplicates(subset=['sequence'], keep='first', inplace=True)
+            df_ex.to_csv('Ram/%s.csv' % (stock_i))
 
-        sql = "USE %s" %(stock_i_)
-        cursor.execute(sql)
-        current_time_table = current_time.replace('-', '_')
-        sql = "CREATE TABLE %s(code CHAR(8), time TIMESTAMP, price FLOAT, volume INT, turnover INT, " \
-              "ticker_direction CHAR(9), sequence BIGINT, type CHAR(21))" % (current_time_table)
-        cursor.execute(sql)
+            current_time_table = current_time.replace('-', '_')
+            sql = "CREATE TABLE %s(code CHAR(8), time TIMESTAMP, price FLOAT, volume INT, turnover INT, " \
+                  "ticker_direction CHAR(9), sequence BIGINT, type CHAR(21))" % (current_time_table)
+            connection.creat_table(stock_i_, sql)
 
-        for i, row in df_ex.iterrows():
-            sqlDatabase = "INSERT INTO %s.%s" % (stock_i_, current_time_table)
-            sql = sqlDatabase + " VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
-            cursor.execute(sql, tuple(row))
-            connection.commit()
+            for i, row in df_ex.iterrows():
+                connection.data_input(stock_i_, current_time_table, 8, tuple(row))
 
     quote_ctx.close()
 
@@ -1388,6 +1373,13 @@ def gmail_create_draft(con):
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('alphax.lys@gmail.com', 'test', 'HK Data collection completed')
-    gmail_create_draft('F5')
+    #gmail_create_draft('F5')
+    watchlistUS = pd.read_csv('watchlistUS.csv')
+    symbol = watchlistUS['Futu symbol'].tolist()
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    ddcoll_HK(quote_ctx, symbol)
+
+
+
+
 
