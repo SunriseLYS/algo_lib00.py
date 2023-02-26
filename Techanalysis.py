@@ -2049,6 +2049,29 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
                    'turnover': round(total_power, 0)}
     return result_dict
 
+
+def model12(df, past_df):
+    df = df.reset_index(drop=True)
+    cal_date = len(past_df) + 1
+    print(cal_date)
+
+    df['type'] = df.apply(lambda x: 1 if x.open < x.close else -1, axis=1)
+    df['size'] = (df['high'] - df['low']) * df['type']
+    avg_base = past_df['close'].mean()
+    df['avg'] = avg_base + (df['close'] - avg_base) / cal_date
+    #df['std'] = past_df['close'].std().round(2)
+
+    #df['avg adjust'] = df['close'].rolling(5).mean().round(2) * 0.618 + df['avg'] * 0.382
+    #df['std adjust'] = df['close'].rolling(5).std().round(2) * 0.618 + df['std'] * 0.382
+
+    df['upper'] = None
+    for i in range(len(df)):
+        df['upper'][i] = df['avg'][i] + df['size'][i]
+
+    return df
+
+
+
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)

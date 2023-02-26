@@ -7,6 +7,8 @@ from futu import *
 from datetime import time
 from time import sleep
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import mysql.connector
 from mysql.connector import Error
 pd.set_option('display.max_columns', 150)  # pandas setting 顥示列數上限
@@ -14,18 +16,6 @@ pd.set_option('display.width', 5000)  # pandas setting 顯示列的闊度
 # pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
 pd.set_option('display.max_rows', 5000)  # pandas setting 顯示行的闊度
 pd.options.mode.chained_assignment = None
-
-
-def matching(quote_ctx):
-    ret_sub = quote_ctx.subscribe(['HK.00700'], [SubType.ORDER_BOOK], subscribe_push=False)[0]
-    if ret_sub == RET_OK:  # 订阅成功
-        ret, data = quote_ctx.get_order_book('HK.00700', num=3)  # 获取一次 3 档实时摆盘数据
-        if ret == RET_OK:
-            print(data)
-        else:
-            print('error:', data)
-    else:
-        print('subscription failed')
 
 
 class Database:   # 需增加檢驗資料完整性功能, 如每隔15分鐘有超過1000筆交易便有遺漏的機會
@@ -202,6 +192,7 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
     return result_dict
 
 
+
 def model9_2_4(df):
     #print(df[df.ticker_direction == 'NEUTRAL']['turnover'].sum())
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
@@ -241,14 +232,6 @@ def model9_2_4(df):
 
 
 
-def model12_2_4(df):
-    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
-    df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
-    df.reset_index(inplace=True, drop=True)
-
-
-
-
 def model9(df):
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
     df.drop(['code', 'sequence', 'type'], axis=1, inplace=True)
@@ -271,6 +254,7 @@ def model3_reflection(df):
     if isinstance(df['time'][0], datetime):   #檢查datetime 類型
         pass
     else: df['time'] = pd.to_datetime(df['time'])
+
 
 
 class TickerTest(TickerHandlerBase):
@@ -301,39 +285,39 @@ class TickerTest(TickerHandlerBase):
 
 
 
-
-
 if __name__ == "__main__":
+    #DB = Database('103.68.62.116', 'root', '630A78e77?')
+    #df = DB.data_request('US_AAPL', 'Day')
+
+
+    df = pd.read_csv('AAPL.csv', index_col=0)
+    df_pastday = pd.read_csv('AAPL_day.csv', index_col=0)
+    df.drop(['pre_close', 'change_rate', 'volume', 'turnover'], axis=1, inplace=True)
+    date_list = sorted(set(df['time_key'].apply(lambda x: x[:10])))
+
+    df['time_key'] = pd.to_datetime(df['time_key'])
+
+    df_day = df[(df['time_key'] > date_list[10]) & (df['time_key'] < date_list[11])]
+    df_pastday = df_pastday[(df_pastday['date'] > date_list[5]) & (df_pastday['date'] < date_list[10])]
+
+
+    df_result = ts.model12(df_day, df_pastday)
+    print(df_result)
+
+    fig = plt.figure()
+    ax = plt.subplot()
+    ax.plot(df_result['time_key'], df_result['high'])
+    ax.plot(df_result['time_key'], df_result['upper'], color='red')
+
+    tick_spacing = df_result.index.size / 10
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(tick_spacing))
+    plt.show()
+
     '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol = symbol[7:8]
     symbol_dict = {i: i.replace('.', '_') for i in symbol}
-
-    DB = Database('103.68.62.116', 'root', '630A78e77?')
-
-    for stock_i in symbol_dict:
-        T_List = DB.table_list(symbol_dict[stock_i])
-        T_List.remove('Day')
-        T_List.remove('Mins')
-
-        T_List = T_List[20:21]
-
-        dfResult = pd.DataFrame()
-        for list_i in T_List:
-            df = DB.data_request(symbol_dict[stock_i], list_i)
-            if isinstance(df['time'][0], datetime):
-                pass
-            else:
-                df['time'] = pd.to_datetime(df['time'])
-
-            dfResult = pd.concat([dfResult, df])
-            print(model9_2_4(df))
-
-        #print(dfResult['volume'].mean())
-        #print(dfResult['volume'].std())
-        
-    '''
+    
 
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     Ticker_US = ['US.TSLA', 'US.DIS', 'US.AAPL']
@@ -343,4 +327,4 @@ if __name__ == "__main__":
     quote_ctx.subscribe(Ticker_US, [SubType.TICKER])
     sleep(1800)
     print('End')
-    quote_ctx.close()
+    quote_ctx.close()'''

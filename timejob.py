@@ -673,23 +673,6 @@ def realTimeAnalysis(symbol, dfsnap):
     att3 = 'EmailAtt/pn_Table.csv'
 
 
-def datarequest(symbol):
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    marState = quote_ctx.get_global_state()
-    if marState[1]['market_hk'] == 'CLOSED':
-        print('HK Market Closed')
-        pass
-    else:
-        ret, data = quote_ctx.get_market_snapshot(symbol)
-        if ret == RET_OK:
-            dfsnap = data
-            dfsnap = dfsnap.set_index('code')
-            return dfsnap
-        else:
-            print('error:', data)
-    quote_ctx.close()
-
-
 def emailnotice():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
