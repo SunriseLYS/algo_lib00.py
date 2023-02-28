@@ -300,7 +300,42 @@ class TickerTest(TickerHandlerBase):
             print(data[data['volume'] > volume_TH])
 
 
+def day_trade_screen(df, observe=15):
+    df_ob = df[:observe]
+    df_ob['high dif'] = df_ob['high'].diff(1)
 
+    trend = []
+    accum: float = 0
+    for i in df_ob:
+        if df['high dif'][i] > 0:
+            accum += df['high dif'][i]
+        else: break
+
+    # 找出第一浪
+    i = 1
+    first_wave: float = 0
+    while df_ob['high dif'][i] > 0 or i == len(df_ob.index):
+        first_wave += df_ob['high dif'][i]
+        i += 1
+    else:
+        while df_ob['high dif'][i] < 0:
+            first_wave -= df_ob['high dif'][i]
+            i += 1
+
+    ii = i + 1
+    sec_wave: float = 0
+    while df_ob['high dif'][ii] > 0:
+        sec_wave += df_ob['high dif'][ii]
+        ii += 1
+    else:
+        ii = i
+        while df_ob['high dif'][ii] < 0:
+            sec_wave -= df_ob['high dif'][ii]
+            ii += 1
+
+    print(first_wave, i)
+    print(sec_wave, ii)
+    print(df_ob)
 
 
 if __name__ == "__main__":
