@@ -2050,23 +2050,17 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
     return result_dict
 
 
+def find_tip(value, related_list):
+    if all(value >= i for i in related_list):
+        return value
+    else:
+        return ' '
+
 def model12(df, past_df):
-    df = df.reset_index(drop=True)
-    cal_date = len(past_df) + 1
-    print(cal_date)
-
-    df['type'] = df.apply(lambda x: 1 if x.open < x.close else -1, axis=1)
-    df['size'] = (df['high'] - df['low']) * df['type']
-    avg_base = past_df['close'].mean()
-    df['avg'] = avg_base + (df['close'] - avg_base) / cal_date
-    #df['std'] = past_df['close'].std().round(2)
-
-    #df['avg adjust'] = df['close'].rolling(5).mean().round(2) * 0.618 + df['avg'] * 0.382
-    #df['std adjust'] = df['close'].rolling(5).std().round(2) * 0.618 + df['std'] * 0.382
-
-    df['upper'] = None
-    for i in range(len(df)):
-        df['upper'][i] = df['avg'][i] + df['size'][i]
+    df.reset_index(inplace=True, drop=True)
+    df['tip'] = ' '
+    for i in range(2, len(df) - 2):
+        df['tip'][i] = find_tip(df['high'][i], df['high'][i-2:i+3].to_list())
 
     return df
 

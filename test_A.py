@@ -139,8 +139,6 @@ def data_check():
             sql = "USE %s" %(symbol_dict[i])
             cursor.execute(sql)
 
-
-
             '''
             sql = "DELETE FROM Day WHERE date='2023-01-16'"
             cursor.execute(sql)

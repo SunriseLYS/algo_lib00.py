@@ -9,8 +9,10 @@ from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import mplfinance as mpf
 import mysql.connector
 from mysql.connector import Error
+
 pd.set_option('display.max_columns', 150)  # pandas setting 顥示列數上限
 pd.set_option('display.width', 5000)  # pandas setting 顯示列的闊度
 # pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
@@ -286,12 +288,10 @@ class TickerTest(TickerHandlerBase):
 
 
 if __name__ == "__main__":
-    #DB = Database('103.68.62.116', 'root', '630A78e77?')
-    #df = DB.data_request('US_AAPL', 'Day')
+    DB = Database('103.68.62.116', 'root', '630A78e77?')
 
-
-    df = pd.read_csv('AAPL.csv', index_col=0)
-    df_pastday = pd.read_csv('AAPL_day.csv', index_col=0)
+    df = pd.read_csv('TSLA_M.csv', index_col=0)
+    df_pastday = pd.read_csv('TSLA_D.csv', index_col=0)
     df.drop(['pre_close', 'change_rate', 'volume', 'turnover'], axis=1, inplace=True)
     date_list = sorted(set(df['time_key'].apply(lambda x: x[:10])))
 
@@ -300,7 +300,18 @@ if __name__ == "__main__":
     df_day = df[(df['time_key'] > date_list[10]) & (df['time_key'] < date_list[11])]
     df_pastday = df_pastday[(df_pastday['date'] > date_list[5]) & (df_pastday['date'] < date_list[10])]
 
+    for row in range(1, len(df_day) - 380):
+        df_result = ts.model12(df_day[:row], df_pastday)
 
+    print(df_result)
+
+    df_day.set_index('time_key', inplace=True, drop=True)
+    '''
+    ap = mpf.make_addplot()
+    mpf.plot(df_day, type='candle')
+    plt.show()'''
+
+    '''
     df_result = ts.model12(df_day, df_pastday)
     print(df_result)
 
@@ -311,7 +322,7 @@ if __name__ == "__main__":
 
     tick_spacing = df_result.index.size / 10
     ax.xaxis.set_major_locator(mticker.MultipleLocator(tick_spacing))
-    plt.show()
+    plt.show()'''
 
     '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')

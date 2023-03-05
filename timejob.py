@@ -1356,13 +1356,6 @@ def gmail_create_draft(con):
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
-    watchlistUS = pd.read_csv('watchlistUS.csv')
-    symbol = watchlistUS['Futu symbol'].tolist()
-    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    ddcoll(quote_ctx, symbol)
-
-
-
+    gmail_create_draft('F5')
 
 
