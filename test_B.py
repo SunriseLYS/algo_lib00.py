@@ -337,7 +337,15 @@ def day_trade_screen(df, observe=15):
     print(sec_wave, ii)
     print(df_ob)
 
-
+    
+def tip_seeing(value, related_value, unit):
+    std = 0.1
+    if all(value >= x for x in related_value) and value > min(related_value) + std:
+        return value
+    else:
+        return ' '
+    
+    
 if __name__ == "__main__":
     '''
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
