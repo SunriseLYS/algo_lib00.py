@@ -2049,6 +2049,14 @@ def model6_2_4(df, P_level = None):   # P_level應是現價
                    'turnover': round(total_power, 0)}
     return result_dict
 
+
+def tip_seeing(value, related_value, unit):
+    if all(value >= x for x in related_value) and value > min(related_value) + unit:
+        return value, value + std, value - std*2
+    else:
+        return '', '', ''
+
+    
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
@@ -2065,6 +2073,41 @@ if __name__ == '__main__':
     '''
     from timejob import gmail_create_draft
     gmail_create_draft('alphax.lys@gmail.com', 'collection', a)'''
+    
+        df = pd.read_csv('TSLA_M.csv', index_col=0)
+    df.reset_index(inplace=True, drop=True)
+    df.drop(len(df)-1, inplace=True, axis=0)
+    df.drop('pre_close', inplace=True, axis=1)
+
+    df['date'] = df['time_key'].apply(lambda x:x[:10])
+    df['date'] = pd.to_datetime(df['date'])
+    datelist = sorted(set(df['date'].to_list()))
+    datelist = datelist[len(datelist)-3:]
+    df['future'] = df['close'].rolling(15).mean()
+
+    std = df['change_rate'].std()
+
+    df['tip'] = ''
+    df['target_U'] = ''
+    df['target_D'] = ''
+    df['portfolio'] = 100
+    sp_level = [df['high'].max(), df['low'].min()]
+
+    df_d = pd.read_csv('TSLA_D.csv', index_col=0)
+    df_d.reset_index(inplace=True, drop=True)
+    df_d['date'] = pd.to_datetime(df_d['date'])
+    #df_d.set_index('date', inplace=True)
+
+    for d in range(1, len(datelist)):
+        dft = df[df['date'] == datelist[d]]
+        std = df[(df['date'] == datelist[d - 1])]['change_rate'].std()
+        avg = df[(df['date'] == datelist[d - 1])]['change_rate'].mean()
+        dft.reset_index(inplace=True, drop=True)
+
+        for i in range(2, len(dft) - 2):
+            dft['tip'][i], dft['target_U'][i], dft['target_D'][i] = tip_seeing(dft['high'][i], dft['high'][i-2: i+3].to_list(), std)
+
+        print(dft)
 
 
 
