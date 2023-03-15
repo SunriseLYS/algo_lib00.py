@@ -2066,6 +2066,14 @@ def model12(df, past_df):
 
 
 
+
+def tip_seeing(value, related_value, unit):
+    if all(value >= x for x in related_value) and value > min(related_value) + unit:
+        return value, value + std, value - std*2
+    else:
+        return '', '', ''
+
+
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
     df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
