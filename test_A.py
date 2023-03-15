@@ -139,6 +139,7 @@ def data_check():
             sql = "USE %s" %(symbol_dict[i])
             cursor.execute(sql)
 
+
             '''
             sql = "DELETE FROM Day WHERE date='2023-01-16'"
             cursor.execute(sql)
@@ -180,7 +181,11 @@ def model3(df, P_level = None):   # P_level應是現價
 
 if __name__ == '__main__':
     #gmail_create_draft('F5')
-    data_check()
+    import test_B as b
+    DB = b.Database('103.68.62.116', 'root', '630A78e77?')
+    df = DB.data_request('HK_00005', 'Mins')
+
+    print(df.tail(1000))
 
 
 

@@ -681,7 +681,6 @@ def emailnotice():
     RSI_Signal_List_R, MACD_Signal_List_R, BB_Signal_List_R, MFI_Signal_List_R = [], [], [], [], [], [], [], [], [], []
     SAR_Sell_List_H, RSI_Sell_List_H, MACD_Sell_List_H, BB_Sell_List_H, MFI_Sell_List_H, SAR_Sell_List_R, RSI_Sell_List_R, \
     MACD_Sell_List_R, BB_Sell_List_R, MFI_Sell_List_R = [], [], [], [], [], [], [], [], [], []
-    dfemail = datarequest(symbol)
 
     Tech_Table_H = pd.DataFrame(columns=['symbol', 'Method', 'TA Value', 'Other'])
     Tech_Table_H['symbol'] = watchlist['Futu symbol']
@@ -1356,6 +1355,25 @@ def gmail_create_draft(con):
 
 
 if __name__ == '__main__':
-    gmail_create_draft('F5')
+    #gmail_create_draft('F5')
+    '''
 
+    connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
+    cursor = connection.cursor()
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+
+    for i in symbol_dict:
+        try:
+            sql = "USE %s" %(symbol_dict[i])
+            cursor.execute(sql)
+
+            sql = "DELETE FROM Mins WHERE time_key>='2023-03-07'"
+            cursor.execute(sql)
+            connection.commit()
+
+
+        except: pass'''
 

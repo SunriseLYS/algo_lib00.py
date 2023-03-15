@@ -285,11 +285,32 @@ class TickerTest(TickerHandlerBase):
         if len(data) > 0:
             print(data[data['volume'] > volume_TH])
 
-
+def tip_seeing(value, related_value, unit):
+    if all(value >= x for x in related_value) and value > min(related_value) + unit:
+        return value, value + unit, value - unit*2
+    else:
+        return '', '', ''
 
 if __name__ == "__main__":
-    DB = Database('103.68.62.116', 'root', '630A78e77?')
+    std_d = 3
 
+    DB = Database('103.68.62.116', 'root', '630A78e77?')
+    df = DB.data_request('US_TSLA', 'Mins')
+    df['date'] = df['time_key'].apply(lambda y: y.strftime('%Y-%m-%d'))
+    date_target = sorted(set(df['date']))
+    date_target = date_target[len(date_target) - std_d]
+    df = df[df['time_key'] >= pd.to_datetime(date_target)]
+    std_unit = df['change_rate'].std()
+
+    df = DB.data_request('US_TSLA', 'Day')
+    df = df[len(df) - 99:]
+    avg_100 = df['close'].to_list()
+    avg_50 = df['close'][len(df)-49:].to_list()
+    avg_20 = df['close'][len(df)-19:].to_list()
+    avg_10 = df['close'][len(df)-9:].to_list()
+    avg_5 = df['close'][len(df)-4:].to_list()
+
+    '''
     df = pd.read_csv('TSLA_M.csv', index_col=0)
     df_pastday = pd.read_csv('TSLA_D.csv', index_col=0)
     df.drop(['pre_close', 'change_rate', 'volume', 'turnover'], axis=1, inplace=True)
@@ -306,12 +327,11 @@ if __name__ == "__main__":
     print(df_result)
 
     df_day.set_index('time_key', inplace=True, drop=True)
-    '''
+
     ap = mpf.make_addplot()
     mpf.plot(df_day, type='candle')
-    plt.show()'''
-
-    '''
+    plt.show()
+    
     df_result = ts.model12(df_day, df_pastday)
     print(df_result)
 
@@ -322,20 +342,37 @@ if __name__ == "__main__":
 
     tick_spacing = df_result.index.size / 10
     ax.xaxis.set_major_locator(mticker.MultipleLocator(tick_spacing))
-    plt.show()'''
+    plt.show()
 
-    '''
+
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
-    symbol_dict = {i: i.replace('.', '_') for i in symbol}
-    
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}'''
+
 
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
-    Ticker_US = ['US.TSLA', 'US.DIS', 'US.AAPL']
+    Ticker_US = ['US.TSLA']
+    std = 0.3
+    t = 0
+    ret_sub, err_message = quote_ctx.subscribe(['US.TSLA'], [SubType.K_1M], subscribe_push=False)
+    while t <= 180:
+        if ret_sub == RET_OK:
+            ret, data = quote_ctx.get_cur_kline('US.TSLA', 15, KLType.K_1M, AuType.QFQ)
+            if ret == RET_OK:
+                data['tip'] = ''
+                data['target_U'] =''
+                data['target_D'] =''
+                for i in range(2, len(data) - 2):
+                    data['tip'][i], data['target_U'][i], data['target_D'][i] = tip_seeing(data['high'][i],
+                                                                                          data['high'][i - 2: i + 3].to_list(),
+                                                                                          std
+                                                                                          )
+                print(data)
+            else:
+                print('error:', data)
+        else:
+            print('subscription failed', err_message)
+        sleep(60)
+        t+=1
 
-    handler = TickerTest()
-    quote_ctx.set_handler(handler)
-    quote_ctx.subscribe(Ticker_US, [SubType.TICKER])
-    sleep(1800)
-    print('End')
-    quote_ctx.close()'''
+    quote_ctx.close()
