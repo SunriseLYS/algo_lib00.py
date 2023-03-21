@@ -1355,7 +1355,7 @@ def gmail_create_draft(con):
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
+    gmail_create_draft('F5')
     '''
 
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
