@@ -291,6 +291,46 @@ def tip_seeing(value, related_value, unit):
     else:
         return '', '', ''
 
+def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, order_side: str):
+    if order_side == 'BUY' and adj_unit <= 0:
+        print('Type 1 error')
+        return None
+    elif order_side == 'SELL' and adj_unit >= 0:
+        print('Type 1 error')
+        return None
+
+    o_id: str
+    ret, data = trd_ctx.place_order(price=pr, qty=qt, code=ticket, trd_side='TrdSide.%s' %(order_side),
+                                    trd_env=TrdEnv.REAL)
+    if ret == RET_OK:
+        print(data)
+        o_id = data['order_id'][0]
+    else:
+        print('place_order error: ', data)
+
+    sleep(5)
+
+    remain_qt: float = qt
+    ret, order_list = trd_ctx.order_list_query(order_id=o_id)
+    if ret == RET_OK:
+        print(order_list)
+        remain_qt = order_list['qty'][0] - order_list['dealt_qty'][0]
+
+        mod_t: int = 0
+        while remain_qt != 0:
+            ret, data = trd_ctx.modify_order(ModifyOrderOp.NORMAL, o_id, price= pr + adj_unit)
+            sleep(5)
+            ret, order_list = trd_ctx.order_list_query(order_id=o_id)
+            remain_qt = order_list['qty'][0] - order_list['dealt_qty'][0]
+            mod_t += 1
+
+            if mod_t > 6:
+                break
+
+    else:
+        print('order_list_query error: ', order_list)
+
+
 if __name__ == "__main__":
     std_d = 3
 
@@ -352,21 +392,27 @@ if __name__ == "__main__":
 
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     Ticker_US = ['US.TSLA']
+    tip_list = []
     std = 0.3
     t = 0
     ret_sub, err_message = quote_ctx.subscribe(['US.TSLA'], [SubType.K_1M], subscribe_push=False)
     while t <= 180:
         if ret_sub == RET_OK:
-            ret, data = quote_ctx.get_cur_kline('US.TSLA', 15, KLType.K_1M, AuType.QFQ)
+            ret, data = quote_ctx.get_cur_kline('US.TSLA', 30, KLType.K_1M, AuType.QFQ)
             if ret == RET_OK:
                 data['tip'] = ''
-                data['target_U'] =''
-                data['target_D'] =''
+                data['target_U'] = ''
+                data['target_D'] = ''
                 for i in range(2, len(data) - 2):
                     data['tip'][i], data['target_U'][i], data['target_D'][i] = tip_seeing(data['high'][i],
                                                                                           data['high'][i - 2: i + 3].to_list(),
                                                                                           std
                                                                                           )
+                    if data['tip'][i] != '':
+                        tip_list.append(data['tip'][i])
+                        if len(tip_list) > 1:
+                            tipGap = tip_list[1] - tip_list[0]
+
                 print(data)
             else:
                 print('error:', data)
