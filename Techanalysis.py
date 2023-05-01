@@ -2066,12 +2066,13 @@ def model12(df, past_df):
 
 
 
-
 def tip_seeing(value, related_value, unit):
     if all(value >= x for x in related_value) and value > min(related_value) + unit:
-        return value, value + std, value - std*2
+        return value, value + unit, value - unit*2
     else:
         return '', '', ''
+
+
 
 
 if __name__ == '__main__':

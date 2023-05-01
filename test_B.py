@@ -291,6 +291,7 @@ def tip_seeing(value, related_value, unit):
     else:
         return '', '', ''
 
+
 def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, order_side: str):
     if order_side == 'BUY' and adj_unit <= 0:
         print('Type 1 error')
@@ -329,6 +330,7 @@ def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, orde
 
     else:
         print('order_list_query error: ', order_list)
+
 
 
 if __name__ == "__main__":

@@ -62,12 +62,31 @@ class Database:
         except:
             print('Dose not exist')
 
+    def table_check(self, stock_i_, table):
+        try:
+            self.cursor.execute("USE %s" % (stock_i_))
+            self.cursor.execute("SHOW columns FROM %s" % (table))
+            column_list = [i[0] for i in self.cursor.fetchall()]
+
+            self.cursor.execute("SELECT * FROM %s.%s" % (stock_i_, table))
+            df = pd.DataFrame(self.cursor.fetchall(), columns=column_list)
+            return df
+        except:
+            print('Dose not exist')
+
+
+    def date_update(self, stock_i_, table, set_value, condition):
+        self.cursor.execute("USE %s" % (stock_i_))
+        self.cursor.execute("UPDATE %s SET %s WHERE %s" % (table, set_value, condition))
+
+
     def creat_database(self, DB_name):
         self.cursor.execute("CREATE DATABASE %s" % (DB_name))
 
     def creat_table(self, DB_name, sql):
         self.cursor.execute("USE %s" % (DB_name))
         self.cursor.execute(sql)
+
 
     def show_db(self, table):
         sql = "SHOW DATABASES LIKE %s" % ('"' + table + '"')
@@ -81,6 +100,14 @@ class Database:
         sql = sqlTo + value[:-1] + ")"
         self.cursor.execute(sql, tuple(row))
         self.connection.commit()
+
+    def data_input_tailor(self, DB_name, table, value):
+        sqlTo = "INSERT INTO %s.%s VALUES " % (DB_name, table)
+
+        sql = sqlTo + value
+        self.cursor.execute(sql)
+        self.connection.commit()
+
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -673,225 +700,6 @@ def realTimeAnalysis(symbol, dfsnap):
     att3 = 'EmailAtt/pn_Table.csv'
 
 
-def emailnotice():
-    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
-    symbol = watchlist['Futu symbol'].tolist()
-
-    SAR_Signal_List_H, RSI_Signal_List_H, MACD_Signal_List_H, BB_Signal_List_H, MFI_Signal_List_H, SAR_Signal_List_R, \
-    RSI_Signal_List_R, MACD_Signal_List_R, BB_Signal_List_R, MFI_Signal_List_R = [], [], [], [], [], [], [], [], [], []
-    SAR_Sell_List_H, RSI_Sell_List_H, MACD_Sell_List_H, BB_Sell_List_H, MFI_Sell_List_H, SAR_Sell_List_R, RSI_Sell_List_R, \
-    MACD_Sell_List_R, BB_Sell_List_R, MFI_Sell_List_R = [], [], [], [], [], [], [], [], [], []
-
-    Tech_Table_H = pd.DataFrame(columns=['symbol', 'Method', 'TA Value', 'Other'])
-    Tech_Table_H['symbol'] = watchlist['Futu symbol']
-    Tech_Table_H = Tech_Table_H.set_index('symbol')
-    Tech_Table_R = pd.DataFrame(columns=['symbol', 'Method', 'TA Value', 'Other'])
-    Tech_Table_R['symbol'] = watchlist['Futu symbol']
-    Tech_Table_R = Tech_Table_R.set_index('symbol')
-
-    for input_i in watchlist['Futu symbol']:
-        OP = dfemail.loc[[input_i]]
-        OP['update_time'] = pd.to_datetime(OP['update_time']).dt.date
-        OP = OP.rename(columns={'update_time': 'Date', 'open_price': 'Open', 'high_price': 'High', 'low_price': 'Low',
-                                'last_price': 'Close', 'volume': 'Volume'})
-        OP.set_index('Date', inplace=True)
-        Main_record = pd.read_csv('Database/' + input_i + '/' + input_i + '_min.csv', index_col=0)
-        Main_record = pd.concat([Main_record, OP])
-        Method_Sum = pd.read_csv('Database/' + input_i + '/Method Summary.csv')
-        Method_Sum = Method_Sum.drop(['Unnamed: 0'], axis=1)
-
-        try:
-            TA_Row_H = Method_Sum['Hit Rate'].idxmax()
-            if Method_Sum['Method'][TA_Row_H] == 'SAR':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration=TA_Con0,
-                                            maximum=TA_Con1)
-                TA_value = Main_record['SAR'][len(Main_record) - 1]
-                Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
-                Latest_P = Main_record['Close'][len(Main_record) - 1]
-                Tech_Table_H['Method'][input_i] = 'SAR'
-                Tech_Table_H['TA Value'][input_i] = TA_value
-                Tech_Table_H['Other'][input_i] = 'Postpone', str(TA_Con2)
-
-                if TA_value < Latest_P and Former_TA_value > Latest_P:
-                    SAR_Signal_List_H.append(input_i, TA_value, 'Postpone', TA_Con2, 'Day')
-                elif TA_value > Latest_P and Former_TA_value < Latest_P:
-                    SAR_Sell_List_H.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_H] == 'RSI':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                TA_Con3 = Method_Sum['Method Condition3'][TA_Row_H]
-                Main_record['RSI'] = ta.RSI(Main_record['Close'], timeperiod=TA_Con0)
-                TA_value = Main_record['RSI'][len(Main_record) - 1]
-                Former_TA_value = Main_record['RSI'][len(Main_record) - 2]
-                Tech_Table_H['Method'][input_i] = 'RSI'
-                Tech_Table_H['TA Value'][input_i] = TA_value
-                Tech_Table_H['Other'][input_i] = TA_Con3
-
-                if TA_Con3 == 'Positive' and TA_value > TA_Con1 and Former_TA_value < TA_Con1:
-                    RSI_Signal_List_H.append(input_i + ' Positive')
-                elif TA_Con3 == 'Positive' and TA_value > TA_Con2 and Former_TA_value < TA_Con2:
-                    RSI_Sell_List_H.append(input_i + ' Positive')
-                elif TA_Con3 == 'Negative' and TA_value < TA_Con1 and Former_TA_value > TA_Con1:
-                    RSI_Signal_List_H.append(input_i + ' Negative')
-                elif TA_Con3 == 'Negative' and TA_value > TA_Con2 and Former_TA_value < TA_Con2:
-                    RSI_Sell_List_H.append(input_i + ' Negative')
-
-            elif Method_Sum['Method'][TA_Row_H] == 'MACD':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
-                    Main_record['Close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
-                TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
-                Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
-                Tech_Table_H['Method'][input_i] = 'MACD'
-                Tech_Table_H['TA Value'][input_i] = TA_value
-
-                if TA_value > 0 and Former_TA_value <= 0:
-                    MACD_Signal_List_H.append(input_i)
-                elif TA_value <= 0 and Former_TA_value > 0:
-                    MACD_Sell_List_H.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_H] == 'BB':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
-                    Main_record['Close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
-                TA_value = Main_record['BB Lower'][len(Main_record) - 1]
-                TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
-                Latest_P = Main_record['Close'][len(Main_record) - 1]
-                Tech_Table_H['Method'][input_i] = 'BB'
-                Tech_Table_H['TA Value'][input_i] = TA_value
-                Tech_Table_H['Other'][input_i] = TA_value1
-
-                if TA_value > Latest_P:
-                    BB_Signal_List_H.append(input_i)
-                elif TA_value1 < Latest_P:
-                    BB_Sell_List_H.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_H] == 'MFI':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_H]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_H]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_H]
-                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'],
-                                            Main_record['Volume'], timeperiod=TA_Con0)
-                TA_value = Main_record['MFI'][len(Main_record) - 1]
-                Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
-                Tech_Table_H['Method'][input_i] = 'MFI'
-                Tech_Table_H['TA Value'][input_i] = TA_value
-                Tech_Table_H['Other'][input_i] = Former_TA_value
-
-                if TA_value <= TA_Con1 and Former_TA_value > TA_Con1:
-                    MFI_Signal_List_H.append(input_i)
-                elif TA_value >= TA_Con1 and Former_TA_value < TA_Con1:
-                    MFI_Sell_List_H.append(input_i)
-        except:
-            print(input_i, 'Check 1 Error')
-
-        try:
-            TA_Row_R = Method_Sum['Return'].idxmax()  # 取得回報最高的列數
-            if Method_Sum['Method'][TA_Row_R] == 'SAR':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['SAR'] = ta.SAR(Main_record['High'], Main_record['Low'], acceleration=TA_Con0,
-                                            maximum=TA_Con1)
-                TA_value = Main_record['SAR'][len(Main_record) - 1]
-                Former_TA_value = Main_record['SAR'][len(Main_record) - 2]
-                Latest_P = Main_record['Close'][len(Main_record) - 1]
-                Tech_Table_R['Method'][input_i] = 'SAR'
-                Tech_Table_R['TA Value'][input_i] = TA_value
-                Tech_Table_R['Other'][input_i] = 'Postpone', str(TA_Con2)
-
-                if TA_value < Latest_P and Former_TA_value > Latest_P:
-                    SAR_Signal_List_R.append(input_i, TA_value, 'Postpone', TA_Con2, 'Day')
-                elif TA_value > Latest_P and Former_TA_value < Latest_P:
-                    SAR_Sell_List_R.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_R] == 'RSI':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                TA_Con3 = Method_Sum['Method Condition3'][TA_Row_R]
-                Main_record['RSI'] = ta.RSI(Main_record['Close'], timeperiod=TA_Con0)
-                TA_value = Main_record['RSI'][len(Main_record) - 1]
-                Former_TA_value = Main_record['RSI'][len(Main_record) - 2]
-                Tech_Table_R['Method'][input_i] = 'RSI'
-                Tech_Table_R['TA Value'][input_i] = TA_value
-                Tech_Table_R['Other'][input_i] = TA_Con3
-
-                if TA_Con3 == 'Positive' and TA_value > TA_Con1 and Former_TA_value < TA_Con1:
-                    RSI_Signal_List_R.append(input_i + ' Positive')
-                elif TA_Con3 == 'Positive' and TA_value > TA_Con2 and Former_TA_value < TA_Con2:
-                    RSI_Sell_List_R.append(input_i + ' Positive')
-                elif TA_Con3 == 'Negative' and TA_value < TA_Con1 and Former_TA_value > TA_Con1:
-                    RSI_Signal_List_R.append(input_i + ' Negative')
-                elif TA_Con3 == 'Negative' and TA_value > TA_Con2 and Former_TA_value < TA_Con2:
-                    RSI_Sell_List_R.append(input_i + ' Negative')
-
-            elif Method_Sum['Method'][TA_Row_R] == 'MACD':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MACD'], Main_record['MACD Signal'], Main_record['MACD Hist'] = ta.MACD(
-                    Main_record['Close'], fastperiod=TA_Con0, slowperiod=TA_Con1, singalperiod=TA_Con2)
-                TA_value = Main_record['MACD Hist'][len(Main_record) - 1]
-                Former_TA_value = Main_record['MACD Hist'][len(Main_record) - 2]
-                Tech_Table_R['Method'][input_i] = 'MACD'
-                Tech_Table_R['TA Value'][input_i] = TA_value
-
-                if TA_value > 0 and Former_TA_value <= 0:
-                    MACD_Signal_List_R.append(input_i)
-                elif TA_value <= 0 and Former_TA_value > 0:
-                    MACD_Sell_List_R.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_R] == 'BB':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['BB Upper'], Main_record['BB Middle'], Main_record['BB Lower'] = ta.BBANDS(
-                    Main_record['Close'], Timeperiod=TA_Con0, Upper=TA_Con1, Lower=TA_Con2)
-                TA_value = Main_record['BB Lower'][len(Main_record) - 1]
-                TA_value1 = Main_record['BB Middle'][len(Main_record) - 1]
-                Latest_P = Main_record['Close'][len(Main_record) - 1]
-                Tech_Table_R['Method'][input_i] = 'BB'
-                Tech_Table_R['TA Value'][input_i] = TA_value
-                Tech_Table_R['Other'][input_i] = TA_value1
-
-                if TA_value > Latest_P:
-                    BB_Signal_List_H.append(input_i)
-                elif TA_value1 < Latest_P:
-                    BB_Sell_List_H.append(input_i)
-
-            elif Method_Sum['Method'][TA_Row_R] == 'MFI':
-                TA_Con0 = Method_Sum['Method Condition0'][TA_Row_R]
-                TA_Con1 = Method_Sum['Method Condition1'][TA_Row_R]
-                TA_Con2 = Method_Sum['Method Condition2'][TA_Row_R]
-                Main_record['MFI'] = ta.MFI(Main_record['High'], Main_record['Low'], Main_record['Close'],
-                                            Main_record['Volume'], timeperiod=TA_Con0)
-                TA_value = Main_record['MFI'][len(Main_record) - 1]
-                Former_TA_value = Main_record['MFI'][len(Main_record) - 2]
-                Tech_Table_R['Method'][input_i] = 'MFI'
-                Tech_Table_R['TA Value'][input_i] = TA_value
-                Tech_Table_R['Other'][input_i] = Former_TA_value
-
-                if TA_value <= TA_Con1 and Former_TA_value > TA_Con1:
-                    MFI_Signal_List_R.append(input_i)
-                elif TA_value >= TA_Con1 and Former_TA_value < TA_Con1:
-                    MFI_Sell_List_R.append(input_i)
-
-        except:
-            print(input_i, ' Check 2 Error')
-
-    Tech_Table_H.to_csv('EmailAtt/Tech_Table_H.csv')
-    Tech_Table_R.to_csv('EmailAtt/Tech_Table_R.csv')
-
 
 def ddcoll(quote_ctx, symbol):
     connection = Database('103.68.62.116', 'root', '630A78e77?')
@@ -1353,6 +1161,45 @@ def gmail_create_draft(con):
         send_message = None
     return send_message
 
+
+def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, order_side: str):
+    if order_side == 'BUY' and adj_unit <= 0:
+        print('Type 1 error')
+        return None
+    elif order_side == 'SELL' and adj_unit >= 0:
+        print('Type 1 error')
+        return None
+
+    o_id: str
+    ret, data = trd_ctx.place_order(price=pr, qty=qt, code=ticket, trd_side='TrdSide.%s' %(order_side),
+                                    trd_env=TrdEnv.REAL)
+    if ret == RET_OK:
+        print(data)
+        o_id = data['order_id'][0]
+    else:
+        print('place_order error: ', data)
+
+    sleep(5)
+
+    remain_qt: float = qt
+    ret, order_list = trd_ctx.order_list_query(order_id=o_id)
+    if ret == RET_OK:
+        print(order_list)
+        remain_qt = order_list['qty'][0] - order_list['dealt_qty'][0]
+
+        mod_t: int = 0
+        while remain_qt != 0:
+            ret, data = trd_ctx.modify_order(ModifyOrderOp.NORMAL, o_id, price= pr + adj_unit)
+            sleep(5)
+            ret, order_list = trd_ctx.order_list_query(order_id=o_id)
+            remain_qt = order_list['qty'][0] - order_list['dealt_qty'][0]
+            mod_t += 1
+
+            if mod_t > 6:
+                break
+
+    else:
+        print('order_list_query error: ', order_list)
 
 if __name__ == '__main__':
     gmail_create_draft('check')

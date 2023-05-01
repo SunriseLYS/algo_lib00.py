@@ -1,113 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import pandas as pd
+import timejob as tj
 pd.set_option('display.max_columns', 150)       #pandas setting 顥示列數上限
 pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊度
 pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
 pd.set_option('display.max_rows', 5000)       #pandas setting 顯示行的闊度
 pd.options.mode.chained_assignment = None
+from futu import *
 import mysql.connector
 from mysql.connector import Error
-import base64
-from email.message import EmailMessage
-from google.auth.transport.requests import Request
-import google.auth
-import mimetypes
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-
-import os
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.dirname(os.path.abspath(__file__)) +"/dauntless-brace-355907-ccb9311dcf58.json"
-
-def main():
-    creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-
-    try:
-        # Call the Gmail API
-        service = build('gmail', 'v1', credentials=creds)
-        results = service.users().labels().list(userId='me').execute()
-        labels = results.get('labels', [])
-
-        if not labels:
-            print('No labels found.')
-            return
-        print('Labels:')
-        for label in labels:
-            print(label['name'])
-
-    except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
-        print(f'An error occurred: {error}')
-
-def gmail_create_draft(con):
-    """Create and insert a draft email.
-       Print the returned draft's message and id.
-       Returns: Draft object, including draft id and message meta data.
-
-      Load pre-authorized user credentials from the environment.
-      TODO(developer) - See https://developers.google.com/identity
-      for guides on implementing OAuth2 for the application.
-    """
-    creds, _ = google.auth.default()
-
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
-
-    try:
-        service = build('gmail', 'v1', credentials=creds)
-        message = EmailMessage()
-
-        message.set_content(str(con))
-
-        message['To'] = 'alphax.lys@gmail.com'
-        message['From'] = 'origin.sunrise@gmail.com'
-        message['Subject'] = 'Automated draft'
-
-        # encoded message
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-
-        create_message = {
-            'raw': encoded_message
-        }
-
-        # pylint: disable=E1101
-        send_message = (service.users().messages().send
-                        (userId="me", body=create_message).execute())
-        print(F'Message Id: {send_message["id"]}')
-
-    except HttpError as error:
-        print(F'An error occurred: {error}')
-        send_message = None
-    return send_message
 
 def create_server_connection(host_name, user_name, user_password):
     connection = None
@@ -123,7 +26,6 @@ def create_server_connection(host_name, user_name, user_password):
 
     return connection
 
-
 def data_check():
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
     cursor = connection.cursor()
@@ -131,61 +33,98 @@ def data_check():
     watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
     symbol = watchlist['Futu symbol'].tolist()
     symbol = symbol[:1]
-    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}  # 轉變成Dictionary
 
     for i in symbol_dict:
         try:
 
-            sql = "USE %s" %(symbol_dict[i])
+            sql = "USE %s" % (symbol_dict[i])
             cursor.execute(sql)
-
 
             '''
             sql = "DELETE FROM Day WHERE date='2023-01-16'"
             cursor.execute(sql)
             connection.commit()
-            
+
             sql = "DELETE FROM Mins WHERE time_key>'2023-01-15'"
             cursor.execute(sql)
             connection.commit()   
-
             sql = "DROP TABLE IF EXISTS 2023_01_16"
             cursor.execute(sql)
             connection.commit()'''
 
-        except: pass
+        except:
+            pass
 
         print(i)
-        #df = pd.read_sql("SELECT * FROM Mins", connection)
-        #print(df.tail(3))
+        # df = pd.read_sql("SELECT * FROM Mins", connection)
+        # print(df.tail(3))
+
+def recalculate(DB, symbol):
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+    for stock_i in symbol_dict:
+        ret, rehab_data = quote_ctx.get_rehab(stock_i)
+        if ret == RET_OK:
+            pass
+        else:
+            print('error:', rehab_data)
+
+        if len(rehab_data) > 1:
+            rehab_date = rehab_data['ex_div_date'][len(rehab_data) - 2]
+            rehab_a = rehab_data['forward_adj_factorA'][len(rehab_data) - 2]
+            rehab_b = rehab_data['forward_adj_factorB'][len(rehab_data) - 2]
+            print(stock_i)
+            print(rehab_date)
+
+            sql = "CREATE TABLE Ex(rehab_date DATE, factor_a FLOAT, factor_b FLOAT, UNIQUE INDEX date(rehab_date))"
+            DB.creat_table(symbol_dict[stock_i], sql)
+
+            DB.data_input_tailor(symbol_dict[stock_i], 'Ex', '("%s", factor_a, factor_b)' % (rehab_date))
+
+            DB.date_update(symbol_dict[stock_i], 'Day', 'open = open * %s + %s' % (rehab_a, rehab_b),
+                           'date < "%s"' % (rehab_date))
+            DB.date_update(symbol_dict[stock_i], 'Day', 'close = close * %s + %s' % (rehab_a, rehab_b),
+                           'date < "%s"' % (rehab_date))
+            DB.date_update(symbol_dict[stock_i], 'Day', 'high = high * %s + %s' % (rehab_a, rehab_b),
+                           'date < "%s"' % (rehab_date))
+            DB.date_update(symbol_dict[stock_i], 'Day', 'low = low * %s + %s' % (rehab_a, rehab_b),
+                           'date < "%s"' % (rehab_date))
+            DB.date_update(symbol_dict[stock_i], 'Day', 'mid = mid * %s + %s' % (rehab_a, rehab_b),
+                           'date < "%s"' % (rehab_date))
+
+            df_d = DB.data_request(symbol_dict[stock_i], 'Day')
+
+            time.sleep(0.5)
+
+    quote_ctx.close()
 
 
-def model3(df, P_level = None):   # P_level應是現價
-    df.drop(df[df['ticker_direction'] == 'NEUTRAL'].index, inplace=True)
-    distribution_T = df.groupby('price')['turnover'].sum()
-
-    if P_level is None:
-        import statistics
-        list_P = distribution_T.index
-        P_level = statistics.median(list_P)
-
-    distribution_T = pd.DataFrame(distribution_T)
-    #distribution_T.reset_index(inplace=True)
-    distribution_T['index'] = distribution_T.index.map(lambda x: x - P_level)
-    distribution_T['distribution'] = distribution_T['turnover'] * distribution_T['index']
-
-    an = (distribution_T['distribution'].sum() / distribution_T['distribution'].abs().sum()) * 100
-    m3_value = round(an, 4)
-    return m3_value
 
 
 if __name__ == '__main__':
-    #gmail_create_draft('F5')
-    import test_B as b
-    DB = b.Database('103.68.62.116', 'root', '630A78e77?')
-    df = DB.data_request('HK_00005', 'Mins')
+    DB = tj.Database('103.68.62.116', 'root', '630A78e77?')
+    df = DB.data_request('HK_00700', 'Day')
 
-    print(df.tail(1000))
+    df['high_5'] = df['high'].shift(1).rolling(5).max()
+    df['high_5_dif'] = df['high_5'] - df['high']
+    df['low_5'] = df['low'].shift(1).rolling(5).min()
+    df['low_5_dif'] = df['low'] - df['low_5']
+
+    print(df)
+
+    '''
+    DB = tj.Database('103.68.62.116', 'root', '630A78e77?')
+    df_d = DB.data_request('HK_00700', 'Day')
+    df_m = DB.data_request('HK_00700', 'Mins')
+
+    df_d.to_csv('700.csv')
+    df_m.to_csv('700m.csv')
+
+    print(df_d)'''
+
+
+
 
 
 
