@@ -103,25 +103,21 @@ def recalculate(DB, symbol):
 
 
 if __name__ == '__main__':
-    DB = tj.Database('103.68.62.116', 'root', '630A78e77?')
-    df = DB.data_request('HK_00700', 'Day')
 
+    df = pd.read_csv('700.csv', index_col=0)
+
+
+    '''
     df['high_5'] = df['high'].shift(1).rolling(5).max()
     df['high_5_dif'] = df['high_5'] - df['high']
     df['low_5'] = df['low'].shift(1).rolling(5).min()
     df['low_5_dif'] = df['low'] - df['low_5']
+    '''
 
     print(df)
 
-    '''
-    DB = tj.Database('103.68.62.116', 'root', '630A78e77?')
-    df_d = DB.data_request('HK_00700', 'Day')
-    df_m = DB.data_request('HK_00700', 'Mins')
 
-    df_d.to_csv('700.csv')
-    df_m.to_csv('700m.csv')
 
-    print(df_d)'''
 
 
 

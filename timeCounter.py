@@ -13,6 +13,7 @@ def timer():
 
         if ToWeekday == 5 and current_time == time(7, 0):
             print('Weekend Market off')
+            timejob.corp_action_check(7)
             sleep(172800)  # 48 hours
         elif current_time == time(9, 30):
             print('HK Market Process Open ', current_time)

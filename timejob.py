@@ -1117,7 +1117,7 @@ def exclud_pre_after_market():
         print(stock_i, ' Done')
 
 
-def gmail_create_draft(con):
+def gmail_create_draft_old(con):
     creds, _ = google.auth.default()
 
     if os.path.exists('token.json'):
@@ -1160,6 +1160,34 @@ def gmail_create_draft(con):
         print(F'An error occurred: {error}')
         send_message = None
     return send_message
+
+
+def corp_action_check(check_days):
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    from datetime import datetime, timedelta
+
+    check_start = datetime.now()
+    check_end = check_start + timedelta(days=check_days)
+    action_list = []
+
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+
+    for i in symbol:
+        ret, data = quote_ctx.get_rehab(i)
+        if ret == RET_OK:
+            if len(data) > 1:
+                ex_date = datetime.strptime(data['ex_div_date'][len(data)-1], "%Y-%m-%d")
+                if check_start < ex_date < check_end:
+                    action_list.append(i)
+        else:
+            print('error:', data)
+
+        time.sleep(1)
+
+    quote_ctx.close()
+
+    gmail_create_draft('alphax.lys@gmail.com', 'corp_action', action_list)
 
 
 def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, order_side: str):
