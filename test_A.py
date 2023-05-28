@@ -2,6 +2,7 @@
 from __future__ import print_function
 import pandas as pd
 import timejob as tj
+import Techanalysis as ts
 pd.set_option('display.max_columns', 150)       #pandas setting 顥示列數上限
 pd.set_option('display.width', 5000)           #pandas setting 顯示列的闊度
 pd.set_option('display.max_colwidth',20)      #pandas setting 每個數據顥示上限
@@ -103,18 +104,20 @@ def recalculate(DB, symbol):
 
 
 if __name__ == '__main__':
+    #quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
 
-    df = pd.read_csv('700.csv', index_col=0)
+    DB = tj.Database('103.68.62.116', 'root', '630A78e77?')
+    df = DB.data_request('HK_00700', 'Day')
 
+    df = df[600: len(df)-1]
+    #df = pd.read_csv('700.csv', index_col=0)
 
-    '''
-    df['high_5'] = df['high'].shift(1).rolling(5).max()
-    df['high_5_dif'] = df['high_5'] - df['high']
-    df['low_5'] = df['low'].shift(1).rolling(5).min()
-    df['low_5_dif'] = df['low'] - df['low_5']
-    '''
+    df = ts.model7(df)
+    df.to_csv('700.csv')
 
     print(df)
+
+
 
 
 

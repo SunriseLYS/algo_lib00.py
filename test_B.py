@@ -337,7 +337,7 @@ if __name__ == "__main__":
     std_d = 3
 
     DB = Database('103.68.62.116', 'root', '630A78e77?')
-    df = DB.data_request('US_TSLA', 'Mins')
+    df = DB.data_request('US_TSLA', 'Day')
     df['date'] = df['time_key'].apply(lambda y: y.strftime('%Y-%m-%d'))
     date_target = sorted(set(df['date']))
     date_target = date_target[len(date_target) - std_d]

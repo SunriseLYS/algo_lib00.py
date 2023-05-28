@@ -2072,8 +2072,18 @@ def tip_seeing(value, related_value, unit):
     else:
         return '', '', ''
 
+def model7(df):
 
+    df['change'] = df['mid'].diff()
+    df['std'] = df['change'].rolling(20).std()
+    df['future_p'] = df['mid'].shift(-1).iloc[::-1].rolling(5).mean().iloc[::-1]
+    df['mid_line'] = df['mid'].rolling(20).mean()
+    df['high_dif'] = df['high'] - df['mid_line']
+    df['high_ratio'] = df['high_dif'] / df['std']
 
+    # hypothesis -> high_ratio 持續在高數值, 處上升軌道
+
+    return df
 
 if __name__ == '__main__':
     df = pd.read_csv('HK_00005_2022_09_01.csv', index_col=0)
@@ -2090,7 +2100,8 @@ if __name__ == '__main__':
     print(a.nlargest(1))
     '''
     from timejob import gmail_create_draft
-    gmail_create_draft('alphax.lys@gmail.com', 'collection', a)'''
+    gmail_create_draft('alphax.lys@gmail.com', 'collection', a)
+    '''
 
 
 

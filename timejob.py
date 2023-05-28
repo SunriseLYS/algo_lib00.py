@@ -408,6 +408,73 @@ def market_check_HK():
     quote_ctx.close()
 
 
+def market_check_HK_test():
+    quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
+    marState = quote_ctx.get_global_state()
+
+    watchlist = pd.read_csv('watchlist.csv', encoding='Big5')
+    symbol = watchlist['Futu symbol'].tolist()
+    symbol = symbol[:3]
+    #symbol = suspension_check(quote_ctx, symbol)
+    symbol_dict = {i: i.replace('.', '_') for i in symbol}   # 轉變成Dictionary
+
+    for j in symbol_dict:
+        exec('df_{} = {}'.format(symbol_dict[j], 'pd.DataFrame()'))  # 創建動態變量, e.g. df_HK_00005
+
+    ret_sub, err_message = quote_ctx.subscribe(symbol, [SubType.TICKER], subscribe_push=False)   #訂閱
+    if ret_sub == RET_OK:
+        pass
+    else:
+        print('subscription failed', err_message)
+
+    start_time = str(datetime.now())
+    model6_result = pd.DataFrame(columns={'lower', 'upper', 'turnover'}, index=symbol)
+    for stock_i, stock_i_ in symbol_dict.items():
+        ret, data = quote_ctx.get_rt_ticker(stock_i, 1000)
+        if ret == RET_OK:
+            exec('df_{stock_i_} = pd.concat([df_{stock_i_}, data])'.format(stock_i_=stock_i_))
+            exec('df_{stock_i_}.drop_duplicates(subset=["sequence"], keep="first", inplace=True)'.format(stock_i_=stock_i_))
+            exec('df_{stock_i_}.to_csv("Ram/{stock_i}.csv")'.format(stock_i_=stock_i_, stock_i=stock_i))
+
+            df_M3 = pd.read_csv('Ram/{stock_i}.csv'.format(stock_i=stock_i), index_col=0)
+
+            if isinstance(df_M3['time'][0], datetime):
+                pass
+            else:
+                df_M3['time'] = pd.to_datetime(df_M3['time'])
+            model6_result.loc[stock_i] = ts.model6_2_4(df_M3)
+        else:
+            print('error:', data)
+    end_time = str(datetime.now())
+
+    maket_trend = model6_result['upper'].sum() / model6_result['lower'].sum()
+    #model6_result['Adjusted'] = model6_result['Ratio'] * maket_trend
+
+    try:
+        gmail_create_draft('alphax.lys@gmail.com', start_time + ' ' + end_time, model6_result, maket_trend, 'Model3_r.csv')
+    except: pass
+
+    sleep(600)
+
+    marState = quote_ctx.get_global_state()
+    if marState[1]['market_hk'] == 'REST':
+        sleep(3600)
+        while True:
+            marState = quote_ctx.get_global_state()
+            if marState[1]['market_hk'] != 'REST':
+                break
+            sleep(10)
+
+
+    ret_unsub, err_message_unsub = quote_ctx.unsubscribe(symbol, [SubType.TICKER])   #取消訂閱
+    if ret_unsub == RET_OK:
+        pass
+    else:
+        print('unsubscription failed！', err_message_unsub)
+
+    quote_ctx.close()
+
+
 def analysisUS():
     quote_ctx = OpenQuoteContext(host='127.0.0.1', port=11111)
     marState = quote_ctx.get_global_state()
@@ -1230,7 +1297,7 @@ def single_order(trd_ctx, ticket: str, pr: float, qt: int, adj_unit: float, orde
         print('order_list_query error: ', order_list)
 
 if __name__ == '__main__':
-    gmail_create_draft('check')
+    gmail_create_draft('origin.sunrise@gmail.com', 'sub', 'update')
     '''
 
     connection = create_server_connection('103.68.62.116', 'root', '630A78e77?')
